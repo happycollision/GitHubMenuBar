@@ -563,11 +563,7 @@ class MenuBarController: NSObject {
     /// Cleanup when the controller is deallocated.
     ///
     /// Invalidates timers to prevent them from firing after deallocation.
-    /// Uses MainActor.assumeIsolated since deinit is nonisolated but we need
-    /// to access main-actor-isolated properties.
-    nonisolated deinit {
-        MainActor.assumeIsolated {
-            refreshTimer?.invalidate()
-        }
+    deinit {
+        refreshTimer?.invalidate()
     }
 }
