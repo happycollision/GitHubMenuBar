@@ -124,9 +124,10 @@ class MenuBarController: NSObject {
     /// - "Filter by Status" submenu
     /// - Separator
     /// - Status/PRs: One of:
-    ///   - "Loading..." (if isLoading)
-    ///   - "Error: ..." (if lastError is set)
+    ///   - "Loading..." (if isLoading AND no cached PRs)
+    ///   - "Error: ..." (if lastError is set AND no cached PRs)
     ///   - "No pending reviews" (if pullRequests is empty)
+    ///   - "Refreshing..." indicator + List of PRs (if isLoading with cached data)
     ///   - List of PRs (clickable multi-line items)
     /// - Padding items (to ensure minimum height equivalent to 10 PRs)
     /// - Separator
@@ -183,12 +184,14 @@ class MenuBarController: NSObject {
         // Track the number of content items we're adding (for minimum height calculation)
         var contentItemCount = 0
 
-        if isLoading {
+        // Show loading/error states only if we have no cached PR data
+        // This allows users to see previously fetched PRs while refreshing
+        if isLoading && pullRequests.isEmpty {
             let loadingItem = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
             loadingItem.isEnabled = false
             menu.addItem(loadingItem)
             contentItemCount = 1
-        } else if let error = lastError {
+        } else if let error = lastError, pullRequests.isEmpty {
             let errorItem = NSMenuItem(title: "Error: \(error)", action: nil, keyEquivalent: "")
             errorItem.isEnabled = false
             menu.addItem(errorItem)
@@ -199,6 +202,24 @@ class MenuBarController: NSObject {
             menu.addItem(emptyItem)
             contentItemCount = 1
         } else {
+            // If refreshing with existing data, show a subtle indicator
+            if isLoading {
+                let refreshingItem = NSMenuItem(title: "Refreshing...", action: nil, keyEquivalent: "")
+                refreshingItem.isEnabled = false
+                // Use a slightly different color to indicate it's a status message
+                let attributedTitle = NSAttributedString(
+                    string: "Refreshing...",
+                    attributes: [
+                        .font: NSFont.menuFont(ofSize: 0),
+                        .foregroundColor: NSColor.secondaryLabelColor
+                    ]
+                )
+                refreshingItem.attributedTitle = attributedTitle
+                menu.addItem(refreshingItem)
+                menu.addItem(NSMenuItem.separator())
+                contentItemCount += 1
+            }
+
             // Create a menu item for each PR
             for pr in pullRequests {
                 // Build metadata line in order: age, author, assignees, comments
