@@ -156,8 +156,12 @@ final class GitHubService: Sendable {
                 return true
             }
 
-            print("DEBUG: Total PRs after deduplication: \(deduplicated.count)")
-            return deduplicated
+            // Sort by creation date (newest first) to maintain chronological order
+            // across all PR states (draft, open, closed, merged)
+            let sorted = deduplicated.sorted { $0.createdAt > $1.createdAt }
+
+            print("DEBUG: Total PRs after deduplication and sorting: \(sorted.count)")
+            return sorted
         } catch let error as AppError {
             throw error
         } catch {
