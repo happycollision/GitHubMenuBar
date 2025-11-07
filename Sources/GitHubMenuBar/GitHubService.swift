@@ -74,7 +74,7 @@ final class GitHubService: Sendable {
         process.arguments = [
             "gh", "search", "prs",
             "--review-requested=@me",
-            "--json", "id,title,url,number,repository,author,createdAt",
+            "--json", "id,title,url,number,repository,author,createdAt,assignees,commentsCount,isDraft,state",
             "--limit", "50"  // Adjust this if you need more/fewer results
         ]
 

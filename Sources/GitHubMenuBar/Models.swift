@@ -31,6 +31,18 @@ struct PullRequest: Codable, Identifiable {
     /// When the PR was created
     let createdAt: Date
 
+    /// List of users assigned to this PR
+    let assignees: [Assignee]
+
+    /// Number of comments on this PR
+    let commentsCount: Int
+
+    /// Whether this PR is a draft
+    let isDraft: Bool
+
+    /// The state of the PR (OPEN, CLOSED, MERGED)
+    let state: String
+
     /// Repository information from GitHub.
     ///
     /// Note: Only includes nameWithOwner (e.g., "TrilliantHealth/engineering-frontend")
@@ -44,6 +56,38 @@ struct PullRequest: Codable, Identifiable {
     struct Author: Codable {
         /// GitHub username
         let login: String
+    }
+
+    /// Assignee information from GitHub.
+    struct Assignee: Codable {
+        /// GitHub username
+        let login: String
+    }
+
+    /// Formats the PR age as a human-readable string (e.g., "2 days ago", "3 hours ago").
+    ///
+    /// - Returns: A string describing how long ago the PR was created
+    func formattedAge() -> String {
+        let now = Date()
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: createdAt,
+            to: now
+        )
+
+        if let years = components.year, years > 0 {
+            return years == 1 ? "1 year ago" : "\(years) years ago"
+        } else if let months = components.month, months > 0 {
+            return months == 1 ? "1 month ago" : "\(months) months ago"
+        } else if let days = components.day, days > 0 {
+            return days == 1 ? "1 day ago" : "\(days) days ago"
+        } else if let hours = components.hour, hours > 0 {
+            return hours == 1 ? "1 hour ago" : "\(hours) hours ago"
+        } else if let minutes = components.minute, minutes > 0 {
+            return minutes == 1 ? "1 minute ago" : "\(minutes) minutes ago"
+        } else {
+            return "just now"
+        }
     }
 }
 

@@ -80,6 +80,9 @@ GitHubMenuBar/
 - **Responsibility**: Data structures
 - **Key types**:
   - `PullRequest`: Codable model matching gh CLI JSON output
+    - Core fields: id, title, url, number, repository, author, createdAt
+    - Metadata fields: assignees, commentsCount, isDraft
+    - Helper method: `formattedAge()` - formats PR age as human-readable string
   - `AppError`: App-specific error types with user-friendly messages
 
 ### GitHubService.swift
@@ -93,15 +96,23 @@ GitHubMenuBar/
   - `checkGHInstalled()`: Verifies gh is installed
   - `checkAuthentication()`: Verifies gh is authenticated
   - `fetchReviewRequests()`: Fetches PRs via `gh search prs`
+- **JSON fields fetched**: id, title, url, number, repository, author, createdAt, assignees, commentsCount, isDraft
 
 ### MenuBarController.swift
 - **Responsibility**: Menu bar UI and user interactions
 - **Key features**:
   - @MainActor for thread-safe UI updates
   - NSStatusItem management (icon + badge)
-  - NSMenu construction and updates
+  - NSMenu construction and updates with multi-line PR items
   - Auto-refresh every 5 minutes
   - Click handlers for PR links
+- **Menu item formatting**:
+  - Two-line display per PR (title line + metadata line)
+  - Title line shows PR info with [DRAFT] indicator if applicable
+  - Metadata line uses attributed string: smaller font, secondary color
+  - Metadata order: age, author, assignees, comments (age first for scannability)
+  - Dynamic text based on counts (singular/plural handling)
+  - Bullet separators (•) for visual clarity
 - **State**:
   - `pullRequests`: Current PR list
   - `isLoading`: Loading state
@@ -136,14 +147,24 @@ updateBadge() → Update count badge on icon
 GitHub PR Reviews (disabled title)
 ────────────────────────────────
 [Loading...] OR [Error: ...] OR [No pending reviews] OR:
-  repo/name #123: PR Title 1
+  repo/name #123: PR Title 1 [DRAFT]
+     opened 2 days ago • by username • 2 assignees • 5 comments
   repo/name #456: PR Title 2
+     opened 1 hour ago • by username • 3 comments
   ...
 ────────────────────────────────
 Refresh (⌘R)
 ────────────────────────────────
 Quit (⌘Q)
 ```
+
+Each PR displays:
+- **Line 1**: Repository name, PR number, title, and [DRAFT] indicator (if applicable)
+- **Line 2**: Metadata with bullet separators (•), formatted smaller and dimmed
+  - Time since opened (always shown, comes first for scannability)
+  - Author (always shown)
+  - Assignee count (if any assigned)
+  - Comment count (if any comments)
 
 ## Configuration
 
@@ -163,17 +184,24 @@ Quit (⌘Q)
 2. **No Filtering**: Shows all pending reviews without filtering by age, repo, etc.
 3. **No Sorting**: PRs appear in GitHub's default search order
 4. **No Notifications**: Doesn't show desktop notifications for new reviews
-5. **No PR Details**: Only shows title/repo, doesn't show file counts, status checks, etc.
+5. **Limited Review Details**: Cannot show number of requested reviewers or approval status (gh search prs limitation)
+   - To get this data would require individual `gh pr view` calls per PR (slower)
+6. **No Status Checks**: Doesn't show CI/CD status or merge conflicts
 
 ## Future Enhancement Ideas
 
 1. **Configurable refresh interval**: Allow users to set refresh time
 2. **Filter/sort options**: By repo, age, author, etc.
 3. **Desktop notifications**: Alert when new review requests appear
-4. **PR details**: Show more info (changed files, checks, comments)
+4. **Detailed review info**: Use hybrid approach with `gh pr view` for full review details
+   - Show number of requested reviewers
+   - Show approval/changes requested count
+   - Show CI/CD status
+   - Available on-demand (e.g., Option+click or submenu)
 5. **Settings UI**: Preferences window for configuration
 6. **Multiple GitHub accounts**: Support for switching accounts
 7. **Custom gh command**: Allow users to customize the search query
+8. **Rich formatting**: Use attributed strings or custom views for better visual hierarchy
 
 ## Testing the App
 

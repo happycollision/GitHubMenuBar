@@ -124,11 +124,17 @@ class MenuBarController: NSObject {
     ///   - "Loading..." (if isLoading)
     ///   - "Error: ..." (if lastError is set)
     ///   - "No pending reviews" (if pullRequests is empty)
-    ///   - List of PRs (clickable items)
+    ///   - List of PRs (clickable multi-line items)
     /// - Separator
     /// - "Refresh" action
     /// - Separator
     /// - "Quit" action
+    ///
+    /// Each PR menu item displays:
+    /// - Line 1: "repo/owner #123: PR Title [STATUS]"
+    ///   Status pill shows DRAFT (gray), OPEN (green), MERGED (purple), or CLOSED (red)
+    /// - Line 2: "   opened Z ago • by author • X assignees • Y comments"
+    ///   (assignees and comments only shown if applicable)
     private func updateMenu() {
         menu.removeAllItems()
 
@@ -153,15 +159,118 @@ class MenuBarController: NSObject {
         } else {
             // Create a menu item for each PR
             for pr in pullRequests {
-                let prItem = NSMenuItem(
-                    title: "\(pr.repository.nameWithOwner) #\(pr.number): \(pr.title)",
-                    action: #selector(openPR(_:)),
-                    keyEquivalent: ""
+                // Build metadata line in order: age, author, assignees, comments
+                var metadataParts: [String] = []
+
+                // Age comes first for better scannability
+                metadataParts.append("opened \(pr.formattedAge())")
+
+                // Author
+                metadataParts.append("by \(pr.author.login)")
+
+                // Assignees (if any)
+                let assigneeCount = pr.assignees.count
+                if assigneeCount > 0 {
+                    metadataParts.append("\(assigneeCount) assignee\(assigneeCount == 1 ? "" : "s")")
+                }
+
+                // Comments (if any)
+                if pr.commentsCount > 0 {
+                    metadataParts.append("\(pr.commentsCount) comment\(pr.commentsCount == 1 ? "" : "s")")
+                }
+
+                let metadataLine = "   " + metadataParts.joined(separator: " • ")
+
+                // Create attributed string with styled formatting
+                let attributedTitle = NSMutableAttributedString()
+
+                // First line: repo/number (muted) + title (prominent)
+                let font = NSFont.menuFont(ofSize: 0) // 0 = default menu font size
+
+                // Muted attributes for repo name and number
+                let mutedAttributes: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: NSColor.secondaryLabelColor
+                ]
+
+                // Normal attributes for PR title
+                let titleAttributes: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: NSColor.labelColor
+                ]
+
+                // Add repo name and PR number (muted)
+                attributedTitle.append(NSAttributedString(
+                    string: "\(pr.repository.nameWithOwner) #\(pr.number): ",
+                    attributes: mutedAttributes
+                ))
+
+                // Add PR title (prominent)
+                attributedTitle.append(NSAttributedString(
+                    string: pr.title,
+                    attributes: titleAttributes
+                ))
+
+                // Add status indicator with rounded pill styling
+                attributedTitle.append(NSAttributedString(string: " ", attributes: titleAttributes))
+
+                // Determine status text and color
+                let (statusText, statusColor): (String, NSColor) = {
+                    if pr.isDraft {
+                        return ("DRAFT", NSColor.systemGray)
+                    } else {
+                        switch pr.state.uppercased() {
+                        case "OPEN":
+                            return ("OPEN", self.githubGreen)
+                        case "MERGED":
+                            return ("MERGED", self.githubPurple)
+                        case "CLOSED":
+                            return ("CLOSED", self.githubRed)
+                        default:
+                            return (pr.state, NSColor.systemGray)
+                        }
+                    }
+                }()
+
+                // Create rounded pill image
+                let pillImage = createPillImage(
+                    text: statusText,
+                    backgroundColor: statusColor,
+                    textColor: NSColor.white
                 )
+
+                // Attach image to attributed string with proper baseline alignment
+                let attachment = NSTextAttachment()
+                attachment.image = pillImage
+
+                // Calculate vertical offset to center pill with text x-height
+                let yOffset = (font.xHeight - pillImage.size.height) / 2.0
+                attachment.bounds = CGRect(x: 0, y: yOffset, width: pillImage.size.width, height: pillImage.size.height)
+
+                let attachmentString = NSAttributedString(attachment: attachment)
+                attributedTitle.append(attachmentString)
+
+                // Newline
+                attributedTitle.append(NSAttributedString(string: "\n"))
+
+                // Second line: smaller size, secondary color, with proper paragraph spacing
+                let paragraphStyle = NSMutableParagraphStyle()
+                paragraphStyle.lineSpacing = 2
+
+                let metadataAttributes: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                    .foregroundColor: NSColor.secondaryLabelColor,
+                    .paragraphStyle: paragraphStyle
+                ]
+                attributedTitle.append(NSAttributedString(string: metadataLine, attributes: metadataAttributes))
+
+                let prItem = NSMenuItem()
+                prItem.attributedTitle = attributedTitle
+                prItem.action = #selector(openPR(_:))
+                prItem.keyEquivalent = ""
                 prItem.target = self
                 // Store the URL in representedObject so we can access it in the action
                 prItem.representedObject = pr.url
-                prItem.toolTip = "by \(pr.author.login)"
                 menu.addItem(prItem)
             }
         }
@@ -178,6 +287,56 @@ class MenuBarController: NSObject {
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
+    }
+
+    // MARK: - Helper Methods
+
+    /// GitHub's official brand colors for PR statuses
+    private var githubGreen: NSColor {
+        NSColor(red: 0x2d / 255.0, green: 0xa4 / 255.0, blue: 0x4e / 255.0, alpha: 1.0)
+    }
+
+    private var githubPurple: NSColor {
+        NSColor(red: 0x82 / 255.0, green: 0x50 / 255.0, blue: 0xdf / 255.0, alpha: 1.0)
+    }
+
+    private var githubRed: NSColor {
+        NSColor(red: 0xcf / 255.0, green: 0x22 / 255.0, blue: 0x2e / 255.0, alpha: 1.0)
+    }
+
+    /// Creates a rounded pill image for badge display (e.g., DRAFT indicator).
+    ///
+    /// - Parameters:
+    ///   - text: The text to display in the pill
+    ///   - backgroundColor: The background color of the pill
+    ///   - textColor: The text color
+    /// - Returns: An NSImage of the rounded pill
+    private func createPillImage(text: String, backgroundColor: NSColor, textColor: NSColor) -> NSImage {
+        let font = NSFont.boldSystemFont(ofSize: NSFont.smallSystemFontSize)
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: textColor]
+        let textSize = (text as NSString).size(withAttributes: attributes)
+
+        // Add padding around text
+        let padding: CGFloat = 4
+        let height: CGFloat = textSize.height + padding
+        let width: CGFloat = textSize.width + padding * 2
+        let cornerRadius: CGFloat = height / 2
+
+        let image = NSImage(size: NSSize(width: width, height: height))
+        image.lockFocus()
+
+        // Draw rounded rectangle background
+        let path = NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: width, height: height),
+                                xRadius: cornerRadius, yRadius: cornerRadius)
+        backgroundColor.setFill()
+        path.fill()
+
+        // Draw text centered
+        let textRect = NSRect(x: padding, y: padding / 2, width: textSize.width, height: textSize.height)
+        (text as NSString).draw(in: textRect, withAttributes: attributes)
+
+        image.unlockFocus()
+        return image
     }
 
     // MARK: - Actions
