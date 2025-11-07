@@ -39,6 +39,14 @@ class MenuBarController: NSObject {
         super.init()
         setupMenuBar()
         setupRefreshTimer()
+
+        // Wire up settings window callback to trigger refresh
+        SettingsWindowController.shared.onSettingsChanged = { [weak self] in
+            Task {
+                await self?.refresh()
+            }
+        }
+
         // Kick off initial data fetch
         Task {
             await refresh()
@@ -120,8 +128,8 @@ class MenuBarController: NSObject {
     /// The menu structure is:
     /// - Title: "GitHub PR Reviews" or "GitHub PR Reviews (Refreshing...)"
     /// - Separator
-    /// - "Refresh" action
-    /// - "Filter by Status" submenu
+    /// - "Refresh" button
+    /// - "Settings..." menu item (⌘,)
     /// - Separator
     /// - Status/PRs: One of:
     ///   - "Loading..." (if isLoading AND no cached PRs)
@@ -188,31 +196,9 @@ class MenuBarController: NSObject {
         refreshItem.view = buttonContainer
         menu.addItem(refreshItem)
 
-        // Settings submenu
-        let settingsItem = NSMenuItem(title: "Filter by Status", action: nil, keyEquivalent: "")
-        let settingsSubmenu = NSMenu()
-
-        // Add a description item
-        let descItem = NSMenuItem(title: "Show PRs with status:", action: nil, keyEquivalent: "")
-        descItem.isEnabled = false
-        settingsSubmenu.addItem(descItem)
-        settingsSubmenu.addItem(NSMenuItem.separator())
-
-        // Add checkbox items for each status
-        for status in PRStatus.allCases {
-            let statusItem = NSMenuItem(
-                title: status.displayName,
-                action: #selector(toggleStatusFilter(_:)),
-                keyEquivalent: ""
-            )
-            statusItem.target = self
-            statusItem.representedObject = status
-            // Check if this status is NOT excluded (i.e., included)
-            statusItem.state = AppSettings.shared.isExcluded(status) ? .off : .on
-            settingsSubmenu.addItem(statusItem)
-        }
-
-        settingsItem.submenu = settingsSubmenu
+        // Settings menu item
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
         menu.addItem(settingsItem)
 
         menu.addItem(NSMenuItem.separator())
@@ -449,26 +435,11 @@ class MenuBarController: NSObject {
         }
     }
 
-    /// Toggles the exclusion state of a PR status filter.
+    /// Opens the settings window.
     ///
-    /// Called when user clicks a status checkbox in the settings submenu.
-    /// The status value is stored in the menu item's representedObject property.
-    /// After toggling, triggers a refresh to fetch PRs with the new filter.
-    @objc private func toggleStatusFilter(_ sender: NSMenuItem) {
-        guard let status = sender.representedObject as? PRStatus else {
-            return
-        }
-
-        // Toggle the exclusion
-        AppSettings.shared.toggleExclusion(for: status)
-
-        // Update the menu item state
-        sender.state = AppSettings.shared.isExcluded(status) ? .off : .on
-
-        // Trigger a refresh to fetch with new filters
-        Task {
-            await refresh()
-        }
+    /// Called when user clicks the "Settings..." button in the menu.
+    @objc private func openSettings() {
+        SettingsWindowController.shared.showSettings()
     }
 
     /// Quits the application.
