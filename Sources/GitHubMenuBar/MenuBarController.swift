@@ -120,13 +120,14 @@ class MenuBarController: NSObject {
     /// The menu structure is:
     /// - Title: "GitHub PR Reviews" (disabled)
     /// - Separator
+    /// - "Refresh" action
+    /// - "Filter by Status" submenu
+    /// - Separator
     /// - Status/PRs: One of:
     ///   - "Loading..." (if isLoading)
     ///   - "Error: ..." (if lastError is set)
     ///   - "No pending reviews" (if pullRequests is empty)
     ///   - List of PRs (clickable multi-line items)
-    /// - Separator
-    /// - "Refresh" action
     /// - Separator
     /// - "Quit" action
     ///
@@ -142,6 +143,40 @@ class MenuBarController: NSObject {
         let titleItem = NSMenuItem(title: "GitHub PR Reviews", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
+        menu.addItem(NSMenuItem.separator())
+
+        // Refresh action (⌘R keyboard shortcut)
+        let refreshItem = NSMenuItem(title: "Refresh", action: #selector(refreshClicked), keyEquivalent: "r")
+        refreshItem.target = self
+        menu.addItem(refreshItem)
+
+        // Settings submenu
+        let settingsItem = NSMenuItem(title: "Filter by Status", action: nil, keyEquivalent: "")
+        let settingsSubmenu = NSMenu()
+
+        // Add a description item
+        let descItem = NSMenuItem(title: "Show PRs with status:", action: nil, keyEquivalent: "")
+        descItem.isEnabled = false
+        settingsSubmenu.addItem(descItem)
+        settingsSubmenu.addItem(NSMenuItem.separator())
+
+        // Add checkbox items for each status
+        for status in PRStatus.allCases {
+            let statusItem = NSMenuItem(
+                title: status.displayName,
+                action: #selector(toggleStatusFilter(_:)),
+                keyEquivalent: ""
+            )
+            statusItem.target = self
+            statusItem.representedObject = status
+            // Check if this status is NOT excluded (i.e., included)
+            statusItem.state = AppSettings.shared.isExcluded(status) ? .off : .on
+            settingsSubmenu.addItem(statusItem)
+        }
+
+        settingsItem.submenu = settingsSubmenu
+        menu.addItem(settingsItem)
+
         menu.addItem(NSMenuItem.separator())
 
         if isLoading {
@@ -275,13 +310,6 @@ class MenuBarController: NSObject {
             }
         }
 
-        menu.addItem(NSMenuItem.separator())
-
-        // Refresh action (⌘R keyboard shortcut)
-        let refreshItem = NSMenuItem(title: "Refresh", action: #selector(refreshClicked), keyEquivalent: "r")
-        refreshItem.target = self
-        menu.addItem(refreshItem)
-
         // Quit action (⌘Q keyboard shortcut)
         menu.addItem(NSMenuItem.separator())
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
@@ -357,6 +385,28 @@ class MenuBarController: NSObject {
     ///
     /// Kicks off an async refresh operation.
     @objc private func refreshClicked() {
+        Task {
+            await refresh()
+        }
+    }
+
+    /// Toggles the exclusion state of a PR status filter.
+    ///
+    /// Called when user clicks a status checkbox in the settings submenu.
+    /// The status value is stored in the menu item's representedObject property.
+    /// After toggling, triggers a refresh to fetch PRs with the new filter.
+    @objc private func toggleStatusFilter(_ sender: NSMenuItem) {
+        guard let status = sender.representedObject as? PRStatus else {
+            return
+        }
+
+        // Toggle the exclusion
+        AppSettings.shared.toggleExclusion(for: status)
+
+        // Update the menu item state
+        sender.state = AppSettings.shared.isExcluded(status) ? .off : .on
+
+        // Trigger a refresh to fetch with new filters
         Task {
             await refresh()
         }

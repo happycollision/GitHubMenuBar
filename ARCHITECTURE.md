@@ -77,26 +77,39 @@ GitHubMenuBar/
   - `AppDelegate`: Initializes MenuBarController
 
 ### Models.swift
-- **Responsibility**: Data structures
+- **Responsibility**: Data structures and settings
 - **Key types**:
+  - `PRStatus`: Enum representing filterable PR statuses (Open, Draft, Merged, Closed)
+  - `AppSettings`: Singleton managing user preferences via UserDefaults
+    - Stores excluded PR statuses with default [MERGED, CLOSED]
+    - Provides included/excluded status sets for filtering
+    - Posts notifications when settings change
+    - Thread-safe with @MainActor
   - `PullRequest`: Codable model matching gh CLI JSON output
     - Core fields: id, title, url, number, repository, author, createdAt
-    - Metadata fields: assignees, commentsCount, isDraft
+    - Metadata fields: assignees, commentsCount, isDraft, state
     - Helper method: `formattedAge()` - formats PR age as human-readable string
   - `AppError`: App-specific error types with user-friendly messages
 
 ### GitHubService.swift
-- **Responsibility**: GitHub data fetching
+- **Responsibility**: GitHub data fetching with status filtering
 - **Key features**:
   - Singleton pattern (`GitHubService.shared`)
   - Sendable conformance for thread safety
   - Shell command execution via Process
+  - Dynamic query building based on user's filter preferences
   - Error handling for gh CLI issues
 - **Methods**:
   - `checkGHInstalled()`: Verifies gh is installed
   - `checkAuthentication()`: Verifies gh is authenticated
-  - `fetchReviewRequests()`: Fetches PRs via `gh search prs`
-- **JSON fields fetched**: id, title, url, number, repository, author, createdAt, assignees, commentsCount, isDraft
+  - `buildSearchQuery()`: Constructs gh search query with status filters
+  - `fetchReviewRequests()`: Fetches PRs via `gh search prs` with filters
+- **JSON fields fetched**: id, title, url, number, repository, author, createdAt, assignees, commentsCount, isDraft, state
+- **Query construction logic**:
+  - Base query: `review-requested:@me`
+  - Adds status filters based on AppSettings.includedStatuses
+  - Handles OPEN/DRAFT logic (draft is subset of open)
+  - Uses negative filters for excluded statuses (e.g., `-is:merged`)
 
 ### MenuBarController.swift
 - **Responsibility**: Menu bar UI and user interactions
@@ -155,6 +168,14 @@ GitHub PR Reviews (disabled title)
 ────────────────────────────────
 Refresh (⌘R)
 ────────────────────────────────
+Filter by Status ▶
+  Show PRs with status: (disabled)
+  ────────────────────
+  ✓ Open
+  ✓ Draft
+    Merged
+    Closed
+────────────────────────────────
 Quit (⌘Q)
 ```
 
@@ -180,28 +201,32 @@ Each PR displays:
 
 ## Known Limitations
 
-1. **50 PR Limit**: Currently limited to 50 PRs (can be adjusted in GitHubService.swift:78)
-2. **No Filtering**: Shows all pending reviews without filtering by age, repo, etc.
+1. **50 PR Limit**: Currently limited to 50 PRs (can be adjusted in GitHubService.swift)
+2. **Limited Filtering**: Can filter by status, but not by age, repo, author, etc.
+   - Note: The `gh` CLI supports additional filters (e.g., `repo:owner/name`, `author:username`, `created:>date`)
+   - This is a UI limitation, not a gh CLI limitation - could be implemented in future versions
 3. **No Sorting**: PRs appear in GitHub's default search order
+   - Note: Could implement custom sorting in the UI layer
 4. **No Notifications**: Doesn't show desktop notifications for new reviews
 5. **Limited Review Details**: Cannot show number of requested reviewers or approval status (gh search prs limitation)
    - To get this data would require individual `gh pr view` calls per PR (slower)
 6. **No Status Checks**: Doesn't show CI/CD status or merge conflicts
+   - Note: Would require additional gh CLI calls per PR
 
 ## Future Enhancement Ideas
 
 1. **Configurable refresh interval**: Allow users to set refresh time
-2. **Filter/sort options**: By repo, age, author, etc.
+2. **Additional filters**: By repo, age, author, etc. (status filtering now implemented)
 3. **Desktop notifications**: Alert when new review requests appear
 4. **Detailed review info**: Use hybrid approach with `gh pr view` for full review details
    - Show number of requested reviewers
    - Show approval/changes requested count
    - Show CI/CD status
    - Available on-demand (e.g., Option+click or submenu)
-5. **Settings UI**: Preferences window for configuration
+5. **Sort options**: Sort by age, repo, priority, etc.
 6. **Multiple GitHub accounts**: Support for switching accounts
 7. **Custom gh command**: Allow users to customize the search query
-8. **Rich formatting**: Use attributed strings or custom views for better visual hierarchy
+8. **Saved filter presets**: Allow users to save and switch between filter combinations
 
 ## Testing the App
 

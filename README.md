@@ -8,6 +8,7 @@ A lightweight macOS menu bar application that monitors GitHub pull requests wher
 - **Real-time Updates**: Automatically refreshes every 5 minutes to fetch new review requests
 - **Quick Access**: Click any PR to open it directly in your default browser
 - **Manual Refresh**: Force refresh at any time from the menu
+- **Status Filtering**: Filter PRs by status (Open, Draft, Merged, Closed) - defaults to showing only Open and Draft PRs
 - **GitHub CLI Integration**: Uses the `gh` CLI for authentication, so no additional setup needed if you're already authenticated
 
 ## Prerequisites
@@ -97,7 +98,29 @@ To create a proper `.app` bundle that you can copy to your Applications folder:
 
 5. Use the "Refresh" option to manually update the list
 
-6. Use "Quit" to close the app
+6. Use "Filter by Status" to customize which PR statuses are shown (see below)
+
+7. Use "Quit" to close the app
+
+## Filtering by Status
+
+The app allows you to filter which PRs are displayed based on their status:
+
+1. Click the menu bar icon to open the menu
+
+2. Navigate to **Filter by Status** at the bottom of the menu
+
+3. Check or uncheck the status types you want to see:
+   - **Open**: Non-draft open PRs
+   - **Draft**: Draft PRs (subset of open PRs)
+   - **Merged**: PRs that have been merged
+   - **Closed**: PRs that were closed without merging
+
+4. Changes are saved automatically and persist across app restarts
+
+5. The PR list will refresh immediately to show only the selected statuses
+
+**Default behavior**: By default, the app shows only **Open** and **Draft** PRs (excludes Merged and Closed). This keeps the menu focused on actionable review requests.
 
 ## How It Works
 

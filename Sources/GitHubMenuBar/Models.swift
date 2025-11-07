@@ -1,5 +1,89 @@
 import Foundation
 
+/// Enum representing the possible PR statuses that can be filtered.
+enum PRStatus: String, CaseIterable {
+    case open = "OPEN"
+    case closed = "CLOSED"
+    case merged = "MERGED"
+    case draft = "DRAFT"
+
+    /// Display name for the status
+    var displayName: String {
+        rawValue.capitalized
+    }
+}
+
+/// Settings manager for user preferences using UserDefaults.
+///
+/// This class manages persistent settings for the application, including which
+/// PR statuses to exclude from the menu display.
+///
+/// Thread safety: This class is marked as Sendable and uses @MainActor for
+/// the notification mechanism to ensure thread-safe access.
+@MainActor
+class AppSettings: ObservableObject {
+    /// Shared singleton instance
+    static let shared = AppSettings()
+
+    private let defaults = UserDefaults.standard
+    private let excludedStatusesKey = "excludedPRStatuses"
+
+    /// Notification posted when settings change
+    static let didChangeNotification = Notification.Name("AppSettingsDidChange")
+
+    private init() {
+        // Initialize defaults if not set
+        if defaults.array(forKey: excludedStatusesKey) == nil {
+            // Default to excluding MERGED and CLOSED
+            defaults.set([PRStatus.merged.rawValue, PRStatus.closed.rawValue], forKey: excludedStatusesKey)
+        }
+    }
+
+    /// Get the set of excluded PR statuses.
+    ///
+    /// - Returns: Set of PRStatus values that should be excluded from display
+    var excludedStatuses: Set<PRStatus> {
+        get {
+            let rawValues = defaults.stringArray(forKey: excludedStatusesKey) ?? []
+            return Set(rawValues.compactMap { PRStatus(rawValue: $0) })
+        }
+        set {
+            let rawValues = newValue.map { $0.rawValue }
+            defaults.set(rawValues, forKey: excludedStatusesKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Check if a specific status is excluded.
+    ///
+    /// - Parameter status: The status to check
+    /// - Returns: True if the status is excluded, false otherwise
+    func isExcluded(_ status: PRStatus) -> Bool {
+        return excludedStatuses.contains(status)
+    }
+
+    /// Toggle the exclusion state of a specific status.
+    ///
+    /// - Parameter status: The status to toggle
+    func toggleExclusion(for status: PRStatus) {
+        var excluded = excludedStatuses
+        if excluded.contains(status) {
+            excluded.remove(status)
+        } else {
+            excluded.insert(status)
+        }
+        excludedStatuses = excluded
+    }
+
+    /// Get the set of included (non-excluded) PR statuses.
+    ///
+    /// - Returns: Set of PRStatus values that should be included in queries
+    var includedStatuses: Set<PRStatus> {
+        let allStatuses = Set(PRStatus.allCases)
+        return allStatuses.subtracting(excludedStatuses)
+    }
+}
+
 /// Data model for a GitHub pull request.
 ///
 /// This model matches the JSON output from `gh search prs --json ...` command.
