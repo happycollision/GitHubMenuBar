@@ -13,7 +13,7 @@ A lightweight macOS menu bar application that monitors GitHub pull requests wher
 
 ## Installation
 
-### Option 1: Download Pre-built Release (Recommended)
+### Download Pre-built Release (Recommended)
 
 1. **Download the latest release**:
    - Go to the [Releases page](https://github.com/dondenton/GitHubMenuBar/releases)
@@ -33,18 +33,6 @@ A lightweight macOS menu bar application that monitors GitHub pull requests wher
    brew install gh
    gh auth login
    ```
-
-### Option 2: Install via Homebrew
-
-```bash
-# Add the tap and install
-brew install --cask dondenton/tap/github-menubar
-
-# Authenticate with GitHub
-gh auth login
-```
-
-The Homebrew installation automatically handles Gatekeeper for unsigned apps.
 
 ## Prerequisites
 
@@ -207,8 +195,7 @@ gh auth login
 Simply direct them to this repository! They can:
 
 1. **Use pre-built releases** (easiest): Download from the [Releases page](https://github.com/dondenton/GitHubMenuBar/releases)
-2. **Install via Homebrew**: `brew install --cask dondenton/tap/github-menubar`
-3. **Build from source**: Clone the repository and follow the build instructions above
+2. **Build from source**: Clone the repository and follow the build instructions above
 
 All users will need to have the GitHub CLI installed and authenticated.
 

@@ -56,31 +56,6 @@ git push origin v0.1.0
 - Upload `GitHubMenuBar.zip` as a release asset
 - Generate release notes from commits since the last tag
 
-### 4. Update Homebrew Cask (If Set Up)
-
-After the GitHub release is published:
-
-1. Download the release ZIP:
-   ```bash
-   curl -L -o GitHubMenuBar.zip https://github.com/dondenton/GitHubMenuBar/releases/download/v0.1.0/GitHubMenuBar.zip
-   ```
-
-2. Calculate SHA256:
-   ```bash
-   shasum -a 256 GitHubMenuBar.zip
-   ```
-
-3. Update `homebrew-tap/Casks/github-menubar.rb` in your tap repository:
-   - Update the `version` field
-   - Update the `sha256` field with the calculated hash
-
-4. Commit and push to the tap repository:
-   ```bash
-   cd ~/path/to/homebrew-tap
-   git commit -am "Update to v0.1.0"
-   git push
-   ```
-
 ## Testing a Release Locally
 
 Before creating an official release, you can test the build process:
@@ -165,4 +140,3 @@ Before creating a release:
 - [ ] All changes committed and pushed to `main`
 - [ ] Tag created and pushed
 - [ ] GitHub release created automatically
-- [ ] Homebrew cask updated (if applicable)

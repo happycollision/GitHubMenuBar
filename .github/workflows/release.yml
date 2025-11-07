@@ -54,16 +54,10 @@ jobs:
 
             ## Installation
 
-            ### Option 1: Direct Download
             1. Download `GitHubMenuBar.zip` below
             2. Extract the ZIP file
             3. Move `GitHubMenuBar.app` to your Applications folder
             4. **First launch**: Right-click the app and select "Open" (required for unsigned apps)
-
-            ### Option 2: Homebrew
-            ```bash
-            brew install --cask dondenton/tap/github-menubar
-            ```
 
             ## Requirements
             - macOS 13.0 (Ventura) or later
