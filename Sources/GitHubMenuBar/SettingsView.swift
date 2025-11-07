@@ -13,8 +13,29 @@ struct SettingsView: View {
     @State private var showMerged: Bool
     @State private var showClosed: Bool
 
+    /// Refresh interval selection
+    @State private var refreshInterval: RefreshInterval
+    @State private var customIntervalText: String = ""
+
     /// Callback to trigger refresh when settings change
     var onSettingsChanged: (() -> Void)?
+
+    /// Enum for predefined refresh intervals
+    enum RefreshInterval: Hashable {
+        case minutes(Int)
+        case custom
+
+        var displayName: String {
+            switch self {
+            case .minutes(let m): return "\(m) minute\(m == 1 ? "" : "s")"
+            case .custom: return "Custom"
+            }
+        }
+
+        static let predefined: [RefreshInterval] = [
+            .minutes(1), .minutes(5), .minutes(10), .minutes(15), .minutes(30)
+        ]
+    }
 
     // MARK: - Initialization
 
@@ -27,6 +48,18 @@ struct SettingsView: View {
         _showDraft = State(initialValue: !AppSettings.shared.isExcluded(.draft))
         _showMerged = State(initialValue: !AppSettings.shared.isExcluded(.merged))
         _showClosed = State(initialValue: !AppSettings.shared.isExcluded(.closed))
+
+        // Initialize refresh interval from AppSettings
+        let currentInterval = AppSettings.shared.refreshIntervalMinutes
+        if let predefined = RefreshInterval.predefined.first(where: {
+            if case .minutes(let m) = $0 { return m == currentInterval }
+            return false
+        }) {
+            _refreshInterval = State(initialValue: predefined)
+        } else {
+            _refreshInterval = State(initialValue: .custom)
+            _customIntervalText = State(initialValue: String(currentInterval))
+        }
     }
 
     // MARK: - Body
@@ -68,6 +101,43 @@ struct SettingsView: View {
 
             Divider()
 
+            // Refresh interval section
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Refresh Interval")
+                    .font(.headline)
+
+                Text("How often to check for new pull requests:")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Picker("Refresh every:", selection: $refreshInterval) {
+                    ForEach(RefreshInterval.predefined, id: \.self) { interval in
+                        Text(interval.displayName).tag(interval)
+                    }
+                    Text("Custom").tag(RefreshInterval.custom)
+                }
+                .onChange(of: refreshInterval) { newValue in
+                    updateRefreshInterval()
+                }
+
+                // Custom interval text field (only shown when Custom is selected)
+                if case .custom = refreshInterval {
+                    HStack {
+                        TextField("Minutes (1-60)", text: $customIntervalText)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .frame(width: 100)
+                            .onSubmit {
+                                updateRefreshInterval()
+                            }
+
+                        Text("minutes")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            Divider()
+
             // Info text
             Text("Changes take effect immediately and will be remembered.")
                 .font(.caption)
@@ -87,6 +157,29 @@ struct SettingsView: View {
 
         if shouldExclude != AppSettings.shared.isExcluded(status) {
             AppSettings.shared.toggleExclusion(for: status)
+            onSettingsChanged?()
+        }
+    }
+
+    /// Updates the refresh interval in AppSettings
+    private func updateRefreshInterval() {
+        let newInterval: Int
+        switch refreshInterval {
+        case .minutes(let m):
+            newInterval = m
+        case .custom:
+            // Parse custom interval from text field
+            if let parsed = Int(customIntervalText), parsed >= 1, parsed <= 60 {
+                newInterval = parsed
+            } else {
+                // Invalid input - revert to current setting
+                customIntervalText = String(AppSettings.shared.refreshIntervalMinutes)
+                return
+            }
+        }
+
+        if newInterval != AppSettings.shared.refreshIntervalMinutes {
+            AppSettings.shared.refreshIntervalMinutes = newInterval
             onSettingsChanged?()
         }
     }

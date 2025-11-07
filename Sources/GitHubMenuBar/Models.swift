@@ -27,6 +27,7 @@ class AppSettings: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let excludedStatusesKey = "excludedPRStatuses"
+    private let refreshIntervalKey = "refreshIntervalMinutes"
 
     /// Notification posted when settings change
     static let didChangeNotification = Notification.Name("AppSettingsDidChange")
@@ -36,6 +37,11 @@ class AppSettings: ObservableObject {
         if defaults.array(forKey: excludedStatusesKey) == nil {
             // Default to excluding MERGED and CLOSED
             defaults.set([PRStatus.merged.rawValue, PRStatus.closed.rawValue], forKey: excludedStatusesKey)
+        }
+
+        // Initialize refresh interval if not set (default to 5 minutes)
+        if defaults.object(forKey: refreshIntervalKey) == nil {
+            defaults.set(5, forKey: refreshIntervalKey)
         }
     }
 
@@ -81,6 +87,33 @@ class AppSettings: ObservableObject {
     var includedStatuses: Set<PRStatus> {
         let allStatuses = Set(PRStatus.allCases)
         return allStatuses.subtracting(excludedStatuses)
+    }
+
+    /// Get or set the refresh interval in minutes.
+    ///
+    /// The interval determines how often the app polls GitHub for updates.
+    /// Valid range is 1-60 minutes. Values outside this range will be clamped.
+    ///
+    /// - Returns: The current refresh interval in minutes (default: 5)
+    var refreshIntervalMinutes: Int {
+        get {
+            let interval = defaults.integer(forKey: refreshIntervalKey)
+            // Ensure we always return a valid value (default to 5 if 0)
+            return interval > 0 ? interval : 5
+        }
+        set {
+            // Clamp the value between 1 and 60 minutes
+            let clampedValue = max(1, min(60, newValue))
+            defaults.set(clampedValue, forKey: refreshIntervalKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get the refresh interval in seconds (for use with Timer).
+    ///
+    /// - Returns: The refresh interval in seconds
+    var refreshIntervalSeconds: TimeInterval {
+        return TimeInterval(refreshIntervalMinutes * 60)
     }
 }
 

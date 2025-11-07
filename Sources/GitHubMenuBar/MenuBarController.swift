@@ -30,7 +30,7 @@ class MenuBarController: NSObject {
     /// Last error message, if any
     private var lastError: String?
 
-    /// Timer for automatic refresh every 5 minutes
+    /// Timer for automatic refresh (interval configured in AppSettings)
     private var refreshTimer: Timer?
 
     // MARK: - Initialization
@@ -46,6 +46,14 @@ class MenuBarController: NSObject {
                 await self?.refresh()
             }
         }
+
+        // Observe settings changes to update refresh interval
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(settingsDidChange),
+            name: AppSettings.didChangeNotification,
+            object: nil
+        )
 
         // Kick off initial data fetch
         Task {
@@ -68,16 +76,28 @@ class MenuBarController: NSObject {
         statusItem.menu = menu
     }
 
-    /// Sets up a timer to automatically refresh PR data every 5 minutes.
+    /// Sets up a timer to automatically refresh PR data based on user's configured interval.
     ///
     /// The timer uses weak self to avoid retain cycles.
+    /// The interval is read from AppSettings.shared.refreshIntervalSeconds.
     private func setupRefreshTimer() {
-        // Refresh every 5 minutes (300 seconds)
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+        // Invalidate any existing timer first
+        refreshTimer?.invalidate()
+
+        // Create new timer with configured interval
+        let interval = AppSettings.shared.refreshIntervalSeconds
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task {
                 await self?.refresh()
             }
         }
+    }
+
+    /// Called when AppSettings change notification is received.
+    ///
+    /// Recreates the refresh timer with the new interval.
+    @objc private func settingsDidChange() {
+        setupRefreshTimer()
     }
 
     // MARK: - Data Fetching
