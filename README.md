@@ -11,13 +11,47 @@ A lightweight macOS menu bar application that monitors GitHub pull requests wher
 - **Status Filtering**: Filter PRs by status (Open, Draft, Merged, Closed) - defaults to showing only Open and Draft PRs
 - **GitHub CLI Integration**: Uses the `gh` CLI for authentication, so no additional setup needed if you're already authenticated
 
+## Installation
+
+### Option 1: Download Pre-built Release (Recommended)
+
+1. **Download the latest release**:
+   - Go to the [Releases page](https://github.com/dondenton/GitHubMenuBar/releases)
+   - Download `GitHubMenuBar.zip`
+
+2. **Extract and install**:
+   - Extract the ZIP file
+   - Move `GitHubMenuBar.app` to your `/Applications` folder
+
+3. **First launch** (unsigned app):
+   - Right-click the app and select **Open**
+   - Click **Open** in the security dialog
+   - Alternatively, run: `xattr -cr /Applications/GitHubMenuBar.app`
+
+4. **Install and authenticate GitHub CLI**:
+   ```bash
+   brew install gh
+   gh auth login
+   ```
+
+### Option 2: Install via Homebrew
+
+```bash
+# Add the tap and install
+brew install --cask dondenton/tap/github-menubar
+
+# Authenticate with GitHub
+gh auth login
+```
+
+The Homebrew installation automatically handles Gatekeeper for unsigned apps.
+
 ## Prerequisites
 
-Before building and running this app, you need to have:
+To run this app, you need:
 
 1. **macOS 13.0 (Ventura) or later**
-2. **Xcode** (for building the app)
-3. **GitHub CLI (`gh`)**: Install and authenticate
+2. **GitHub CLI (`gh`)**: Install and authenticate
 
 ### Installing and Authenticating GitHub CLI
 
@@ -32,6 +66,14 @@ gh auth login
 Follow the prompts to authenticate with your GitHub account.
 
 ## Building from Source
+
+If you prefer to build from source instead of using a pre-built release:
+
+### Prerequisites for Building
+
+1. **macOS 13.0 (Ventura) or later**
+2. **Xcode** (for building the app)
+3. **Swift 6.2+**
 
 ### Option 1: Command Line Build
 
@@ -160,15 +202,15 @@ gh auth login
 - Check your GitHub notifications to confirm you have review requests
 - Try the "Refresh" option in the menu
 
-## Sharing with Coworkers
+## Sharing with Others
 
-To share this app with your coworkers:
+Simply direct them to this repository! They can:
 
-1. **Share the source code**: They can clone this repository and build it themselves following the instructions above
+1. **Use pre-built releases** (easiest): Download from the [Releases page](https://github.com/dondenton/GitHubMenuBar/releases)
+2. **Install via Homebrew**: `brew install --cask dondenton/tap/github-menubar`
+3. **Build from source**: Clone the repository and follow the build instructions above
 
-2. **Share a built app**: You can build the app and share the `.app` bundle (see "Creating a Standalone App Bundle" above). However, note that they may need to:
-   - Right-click the app and select "Open" the first time (macOS Gatekeeper)
-   - Have the GitHub CLI installed and authenticated
+All users will need to have the GitHub CLI installed and authenticated.
 
 ## Development
 

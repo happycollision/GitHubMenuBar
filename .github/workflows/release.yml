@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    permissions:
+      contents: write  # Required to create releases and upload assets
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+
+      - name: Build release
+        run: |
+          chmod +x scripts/build_release.sh
+          ./scripts/build_release.sh
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          # Generate changelog
+          if [ -z "$PREV_TAG" ]; then
+            echo "notes=Initial release of GitHubMenuBar" >> $GITHUB_OUTPUT
+          else
+            echo "notes<<EOF" >> $GITHUB_OUTPUT
+            echo "## What's Changed" >> $GITHUB_OUTPUT
+            git log ${PREV_TAG}..HEAD --pretty=format:"- %s" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: GitHubMenuBar v${{ steps.get_version.outputs.version }}
+          body: |
+            ${{ steps.release_notes.outputs.notes }}
+
+            ## Installation
+
+            ### Option 1: Direct Download
+            1. Download `GitHubMenuBar.zip` below
+            2. Extract the ZIP file
+            3. Move `GitHubMenuBar.app` to your Applications folder
+            4. **First launch**: Right-click the app and select "Open" (required for unsigned apps)
+
+            ### Option 2: Homebrew
+            ```bash
+            brew install --cask dondenton/tap/github-menubar
+            ```
+
+            ## Requirements
+            - macOS 13.0 (Ventura) or later
+            - GitHub CLI (`gh`) installed and authenticated
+
+            ## Bypassing Gatekeeper (unsigned app)
+            If you see "cannot be opened because the developer cannot be verified":
+            ```bash
+            xattr -cr /Applications/GitHubMenuBar.app
+            ```
+            Then try opening again.
+          files: |
+            dist/GitHubMenuBar.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
