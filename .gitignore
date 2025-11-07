@@ -1,8 +1,98 @@
+# macOS System Files
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
 /.build
 /Packages
-xcuserdata/
-DerivedData/
+/.swiftpm
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+Package.resolved
+
+# CocoaPods (if ever used)
+Pods/
+*.podspec
+Podfile.lock
+
+# Carthage (if ever used)
+Carthage/Build/
+Carthage/Checkouts/
+
+# Accio dependency management
+Dependencies/
+.accio/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+fastlane/README.md
+
+# Code Injection
+iOSInjectionProject/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Compiler Generated Files
+*.generated.swift
+
+# Build outputs
+build/
+*.app
+*.framework
+*.xcframework
+
+# Archives
+*.xcarchive
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Credentials and secrets
 .netrc
+*.pem
+*.key
+*.p12
+*.mobileprovision
+*.cer
+
+# Testing
+*.gcda
+*.gcno
+coverage/
+*.coverage
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Claude Code
+.claude/
