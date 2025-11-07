@@ -173,9 +173,19 @@ class MenuBarController: NSObject {
         menu.addItem(titleItem)
         menu.addItem(NSMenuItem.separator())
 
-        // Refresh action (⌘R keyboard shortcut)
-        let refreshItem = NSMenuItem(title: "Refresh", action: #selector(refreshClicked), keyEquivalent: "r")
-        refreshItem.target = self
+        // Refresh action with custom view to prevent menu from closing
+        let refreshButton = NSButton(title: "Refresh", target: self, action: #selector(refreshClicked))
+        refreshButton.bezelStyle = .recessed
+        refreshButton.isBordered = true
+        refreshButton.alignment = .center
+        refreshButton.frame = NSRect(x: 12, y: 4, width: 176, height: 24)
+
+        // Wrap button in a container view with proper sizing
+        let buttonContainer = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 32))
+        buttonContainer.addSubview(refreshButton)
+
+        let refreshItem = NSMenuItem()
+        refreshItem.view = buttonContainer
         menu.addItem(refreshItem)
 
         // Settings submenu
@@ -432,7 +442,7 @@ class MenuBarController: NSObject {
 
     /// Handles the manual "Refresh" menu action.
     ///
-    /// Kicks off an async refresh operation.
+    /// Kicks off an async refresh operation. The menu stays open during the refresh.
     @objc private func refreshClicked() {
         Task {
             await refresh()
