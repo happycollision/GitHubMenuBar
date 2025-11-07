@@ -558,12 +558,4 @@ class MenuBarController: NSObject {
         NSApplication.shared.terminate(nil)
     }
 
-    // MARK: - Cleanup
-
-    /// Cleanup when the controller is deallocated.
-    ///
-    /// Invalidates timers to prevent them from firing after deallocation.
-    deinit {
-        refreshTimer?.invalidate()
-    }
 }
