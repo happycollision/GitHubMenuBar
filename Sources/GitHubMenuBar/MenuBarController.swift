@@ -148,7 +148,7 @@ class MenuBarController: NSObject {
     private func updateMenu() {
         menu.removeAllItems()
 
-        // Title with optional refreshing indicator
+        // Title and Refresh button combined on one line to save vertical space
         let titleText: String
         if isLoading && !pullRequests.isEmpty {
             titleText = "GitHub PR Reviews (Refreshing...)"
@@ -156,14 +156,14 @@ class MenuBarController: NSObject {
             titleText = "GitHub PR Reviews"
         }
 
-        // Create attributed string with bold, black text
+        // Create attributed string with bold, black text for title
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize),
             .foregroundColor: NSColor.black
         ]
         let attributedTitle = NSAttributedString(string: titleText, attributes: titleAttributes)
 
-        // Create a custom view for the title so it doesn't have hover state
+        // Create title label
         let titleLabel = NSTextField(labelWithAttributedString: attributedTitle)
         titleLabel.isEditable = false
         titleLabel.isSelectable = false
@@ -171,30 +171,44 @@ class MenuBarController: NSObject {
         titleLabel.drawsBackground = false
         titleLabel.sizeToFit()
 
-        // Add minimal padding to match standard menu item appearance
-        let paddedView = NSView(frame: NSRect(x: 0, y: 0, width: titleLabel.frame.width + 24, height: titleLabel.frame.height + 6))
-        titleLabel.frame.origin = NSPoint(x: 12, y: 3)
-        paddedView.addSubview(titleLabel)
-
-        let titleItem = NSMenuItem()
-        titleItem.view = paddedView
-        menu.addItem(titleItem)
-        menu.addItem(NSMenuItem.separator())
-
-        // Refresh action with custom view to prevent menu from closing
+        // Create refresh button
         let refreshButton = NSButton(title: "Refresh", target: self, action: #selector(refreshClicked))
         refreshButton.bezelStyle = .recessed
         refreshButton.isBordered = true
         refreshButton.alignment = .center
-        refreshButton.frame = NSRect(x: 12, y: 4, width: 176, height: 24)
+        refreshButton.sizeToFit()
 
-        // Wrap button in a container view with proper sizing
-        let buttonContainer = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 32))
-        buttonContainer.addSubview(refreshButton)
+        // Size button slightly wider for better appearance
+        let buttonWidth = max(refreshButton.frame.width + 16, 80)
+        refreshButton.frame.size.width = buttonWidth
 
-        let refreshItem = NSMenuItem()
-        refreshItem.view = buttonContainer
-        menu.addItem(refreshItem)
+        // Set container width to match typical PR item width in the menu
+        // PR items are typically 450-550px wide, so we use a fixed width that matches
+        // This ensures the button aligns to the right edge of the entire menu
+        // TODO: Improve button alignment - currently uses fixed width which doesn't perfectly
+        // match the dynamic menu width. Consider calculating actual menu width or using
+        // NSMenu's intrinsic width to ensure perfect right alignment.
+        let containerWidth: CGFloat = 500
+        let containerHeight: CGFloat = 32
+        let leftPadding: CGFloat = 12
+        let rightPadding: CGFloat = 12
+        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: containerWidth, height: containerHeight))
+
+        // Position title on the left
+        titleLabel.frame.origin = NSPoint(x: leftPadding, y: (containerHeight - titleLabel.frame.height) / 2)
+
+        // Position button on the right (truly aligned to the right)
+        refreshButton.frame.origin = NSPoint(
+            x: containerWidth - buttonWidth - rightPadding,
+            y: (containerHeight - refreshButton.frame.height) / 2
+        )
+
+        containerView.addSubview(titleLabel)
+        containerView.addSubview(refreshButton)
+
+        let headerItem = NSMenuItem()
+        headerItem.view = containerView
+        menu.addItem(headerItem)
 
         // Settings menu item
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
