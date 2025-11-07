@@ -128,6 +128,7 @@ class MenuBarController: NSObject {
     ///   - "Error: ..." (if lastError is set)
     ///   - "No pending reviews" (if pullRequests is empty)
     ///   - List of PRs (clickable multi-line items)
+    /// - Padding items (to ensure minimum height equivalent to 10 PRs)
     /// - Separator
     /// - "Quit" action
     ///
@@ -179,18 +180,24 @@ class MenuBarController: NSObject {
 
         menu.addItem(NSMenuItem.separator())
 
+        // Track the number of content items we're adding (for minimum height calculation)
+        var contentItemCount = 0
+
         if isLoading {
             let loadingItem = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
             loadingItem.isEnabled = false
             menu.addItem(loadingItem)
+            contentItemCount = 1
         } else if let error = lastError {
             let errorItem = NSMenuItem(title: "Error: \(error)", action: nil, keyEquivalent: "")
             errorItem.isEnabled = false
             menu.addItem(errorItem)
+            contentItemCount = 1
         } else if pullRequests.isEmpty {
             let emptyItem = NSMenuItem(title: "No pending reviews", action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false
             menu.addItem(emptyItem)
+            contentItemCount = 1
         } else {
             // Create a menu item for each PR
             for pr in pullRequests {
@@ -307,7 +314,20 @@ class MenuBarController: NSObject {
                 // Store the URL in representedObject so we can access it in the action
                 prItem.representedObject = pr.url
                 menu.addItem(prItem)
+                contentItemCount += 1
             }
+        }
+
+        // Add padding items to ensure minimum height (equivalent to 10 PRs)
+        let minimumContentItems = 10
+        let paddingItemsNeeded = max(0, minimumContentItems - contentItemCount)
+
+        for _ in 0..<paddingItemsNeeded {
+            // Create invisible spacer items that maintain menu height
+            // Using a non-breaking space to make the item take up vertical space
+            let spacerItem = NSMenuItem(title: " ", action: nil, keyEquivalent: "")
+            spacerItem.isEnabled = false
+            menu.addItem(spacerItem)
         }
 
         // Quit action (⌘Q keyboard shortcut)
