@@ -28,6 +28,7 @@ class AppSettings: ObservableObject {
     private let defaults = UserDefaults.standard
     private let excludedStatusesKey = "excludedPRStatuses"
     private let refreshIntervalKey = "refreshIntervalMinutes"
+    private let groupByRepoKey = "groupByRepo"
 
     /// Notification posted when settings change
     static let didChangeNotification = Notification.Name("AppSettingsDidChange")
@@ -42,6 +43,11 @@ class AppSettings: ObservableObject {
         // Initialize refresh interval if not set (default to 5 minutes)
         if defaults.object(forKey: refreshIntervalKey) == nil {
             defaults.set(5, forKey: refreshIntervalKey)
+        }
+
+        // Initialize group by repo if not set (default to true)
+        if defaults.object(forKey: groupByRepoKey) == nil {
+            defaults.set(true, forKey: groupByRepoKey)
         }
     }
 
@@ -114,6 +120,23 @@ class AppSettings: ObservableObject {
     /// - Returns: The refresh interval in seconds
     var refreshIntervalSeconds: TimeInterval {
         return TimeInterval(refreshIntervalMinutes * 60)
+    }
+
+    /// Get or set whether PRs should be grouped by repository.
+    ///
+    /// When enabled, PRs in the menu will be organized by repository with headers
+    /// showing the repository name and PR count. When disabled, PRs are shown in a
+    /// flat list sorted by creation date.
+    ///
+    /// - Returns: True if grouping is enabled (default: true), false otherwise
+    var groupByRepo: Bool {
+        get {
+            return defaults.bool(forKey: groupByRepoKey)
+        }
+        set {
+            defaults.set(newValue, forKey: groupByRepoKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
     }
 }
 

@@ -258,122 +258,86 @@ class MenuBarController: NSObject {
             menu.addItem(emptyItem)
             contentItemCount = 1
         } else {
-            // Create a menu item for each PR
-            for pr in pullRequests {
-                // Build metadata line in order: age, author, assignees, comments
-                var metadataParts: [String] = []
-
-                // Age comes first for better scannability
-                metadataParts.append("opened \(pr.formattedAge())")
-
-                // Author
-                metadataParts.append("by \(pr.author.login)")
-
-                // Assignees (if any)
-                let assigneeCount = pr.assignees.count
-                if assigneeCount > 0 {
-                    metadataParts.append("\(assigneeCount) assignee\(assigneeCount == 1 ? "" : "s")")
-                }
-
-                // Comments (if any)
-                if pr.commentsCount > 0 {
-                    metadataParts.append("\(pr.commentsCount) comment\(pr.commentsCount == 1 ? "" : "s")")
-                }
-
-                let metadataLine = "   " + metadataParts.joined(separator: " • ")
-
-                // Create attributed string with styled formatting
-                let attributedTitle = NSMutableAttributedString()
-
-                // First line: repo/number (muted) + title (prominent)
-                let font = NSFont.menuFont(ofSize: 0) // 0 = default menu font size
-
-                // Muted attributes for repo name and number
-                let mutedAttributes: [NSAttributedString.Key: Any] = [
-                    .font: font,
-                    .foregroundColor: NSColor.secondaryLabelColor
-                ]
-
-                // Normal attributes for PR title
-                let titleAttributes: [NSAttributedString.Key: Any] = [
-                    .font: font,
-                    .foregroundColor: NSColor.labelColor
-                ]
-
-                // Add repo name and PR number (muted)
-                attributedTitle.append(NSAttributedString(
-                    string: "\(pr.repository.nameWithOwner) #\(pr.number): ",
-                    attributes: mutedAttributes
-                ))
-
-                // Add PR title (prominent)
-                attributedTitle.append(NSAttributedString(
-                    string: pr.title,
-                    attributes: titleAttributes
-                ))
-
-                // Add status indicator with rounded pill styling
-                attributedTitle.append(NSAttributedString(string: " ", attributes: titleAttributes))
-
-                // Determine status text and color
-                let (statusText, statusColor): (String, NSColor) = {
-                    if pr.isDraft {
-                        return ("DRAFT", NSColor.systemGray)
-                    } else {
-                        switch pr.state.uppercased() {
-                        case "OPEN":
-                            return ("OPEN", self.githubGreen)
-                        case "MERGED":
-                            return ("MERGED", self.githubPurple)
-                        case "CLOSED":
-                            return ("CLOSED", self.githubRed)
-                        default:
-                            return (pr.state, NSColor.systemGray)
-                        }
+            // Check if grouping by repository is enabled
+            if AppSettings.shared.groupByRepo {
+                // Group PRs by repository
+                var prsByRepo: [String: [PullRequest]] = [:]
+                for pr in pullRequests {
+                    let repoName = pr.repository.nameWithOwner
+                    if prsByRepo[repoName] == nil {
+                        prsByRepo[repoName] = []
                     }
-                }()
+                    prsByRepo[repoName]?.append(pr)
+                }
 
-                // Create rounded pill image
-                let pillImage = createPillImage(
-                    text: statusText,
-                    backgroundColor: statusColor,
-                    textColor: NSColor.white
-                )
+                // Sort repositories by most recent PR (earliest createdAt date)
+                let sortedRepos = prsByRepo.keys.sorted { repo1, repo2 in
+                    let mostRecentPR1 = prsByRepo[repo1]?.min(by: { $0.createdAt > $1.createdAt })
+                    let mostRecentPR2 = prsByRepo[repo2]?.min(by: { $0.createdAt > $1.createdAt })
 
-                // Attach image to attributed string with proper baseline alignment
-                let attachment = NSTextAttachment()
-                attachment.image = pillImage
+                    if let pr1 = mostRecentPR1, let pr2 = mostRecentPR2 {
+                        return pr1.createdAt > pr2.createdAt // More recent first
+                    }
+                    return repo1 < repo2 // Fallback to alphabetical
+                }
 
-                // Calculate vertical offset to center pill with text x-height
-                let yOffset = (font.xHeight - pillImage.size.height) / 2.0
-                attachment.bounds = CGRect(x: 0, y: yOffset, width: pillImage.size.width, height: pillImage.size.height)
+                // Display grouped PRs
+                for repoName in sortedRepos {
+                    guard let repoPRs = prsByRepo[repoName] else { continue }
 
-                let attachmentString = NSAttributedString(attachment: attachment)
-                attributedTitle.append(attachmentString)
+                    // Add repository header with bold, black text
+                    let prCount = repoPRs.count
+                    let headerText = "\(repoName) (\(prCount) PR\(prCount == 1 ? "" : "s"))"
 
-                // Newline
-                attributedTitle.append(NSAttributedString(string: "\n"))
+                    let headerAttributes: [NSAttributedString.Key: Any] = [
+                        .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize),
+                        .foregroundColor: NSColor.black
+                    ]
+                    let attributedHeader = NSAttributedString(string: headerText, attributes: headerAttributes)
 
-                // Second line: smaller size, secondary color, with proper paragraph spacing
-                let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.lineSpacing = 2
+                    let headerLabel = NSTextField(labelWithAttributedString: attributedHeader)
+                    headerLabel.isEditable = false
+                    headerLabel.isSelectable = false
+                    headerLabel.isBordered = false
+                    headerLabel.drawsBackground = false
+                    headerLabel.sizeToFit()
 
-                let metadataAttributes: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-                    .foregroundColor: NSColor.secondaryLabelColor,
-                    .paragraphStyle: paragraphStyle
-                ]
-                attributedTitle.append(NSAttributedString(string: metadataLine, attributes: metadataAttributes))
+                    // Add padding around the header
+                    let headerPadding: CGFloat = 12
+                    let headerContainer = NSView(frame: NSRect(
+                        x: 0,
+                        y: 0,
+                        width: headerLabel.frame.width + headerPadding * 2,
+                        height: headerLabel.frame.height + 4
+                    ))
+                    headerLabel.frame.origin = NSPoint(x: headerPadding, y: 2)
+                    headerContainer.addSubview(headerLabel)
 
-                let prItem = NSMenuItem()
-                prItem.attributedTitle = attributedTitle
-                prItem.action = #selector(openPR(_:))
-                prItem.keyEquivalent = ""
-                prItem.target = self
-                // Store the URL in representedObject so we can access it in the action
-                prItem.representedObject = pr.url
-                menu.addItem(prItem)
-                contentItemCount += 1
+                    let headerItem = NSMenuItem()
+                    headerItem.view = headerContainer
+                    menu.addItem(headerItem)
+                    contentItemCount += 1
+
+                    // Add separator after header
+                    menu.addItem(NSMenuItem.separator())
+
+                    // Add PRs for this repository (without repo name in title)
+                    for pr in repoPRs {
+                        let prMenuItem = createPRMenuItem(pr: pr, includeRepoName: false)
+                        menu.addItem(prMenuItem)
+                        contentItemCount += 1
+                    }
+
+                    // Add separator after repo's PRs
+                    menu.addItem(NSMenuItem.separator())
+                }
+            } else {
+                // Flat list mode: Create a menu item for each PR (with repo name)
+                for pr in pullRequests {
+                    let prMenuItem = createPRMenuItem(pr: pr, includeRepoName: true)
+                    menu.addItem(prMenuItem)
+                    contentItemCount += 1
+                }
             }
         }
 
@@ -397,6 +361,119 @@ class MenuBarController: NSObject {
     }
 
     // MARK: - Helper Methods
+
+    /// Creates a menu item for a pull request with formatted title and metadata.
+    ///
+    /// - Parameters:
+    ///   - pr: The pull request to create a menu item for
+    ///   - includeRepoName: Whether to include the repository name in the title
+    /// - Returns: A configured NSMenuItem ready to be added to the menu
+    private func createPRMenuItem(pr: PullRequest, includeRepoName: Bool) -> NSMenuItem {
+        // Format the metadata line (age, author, assignees, comments)
+        var metadataParts: [String] = []
+        metadataParts.append("opened \(pr.formattedAge())")
+        metadataParts.append("by \(pr.author.login)")
+
+        if !pr.assignees.isEmpty {
+            metadataParts.append("\(pr.assignees.count) assignee\(pr.assignees.count == 1 ? "" : "s")")
+        }
+
+        if pr.commentsCount > 0 {
+            metadataParts.append("\(pr.commentsCount) comment\(pr.commentsCount == 1 ? "" : "s")")
+        }
+
+        let metadataLine = "   " + metadataParts.joined(separator: " • ")
+
+        // Determine status text and color
+        let (statusText, statusColor): (String, NSColor)
+        if pr.isDraft {
+            statusText = "DRAFT"
+            statusColor = .systemGray
+        } else {
+            switch pr.state.uppercased() {
+            case "OPEN":
+                statusText = "OPEN"
+                statusColor = githubGreen
+            case "MERGED":
+                statusText = "MERGED"
+                statusColor = githubPurple
+            case "CLOSED":
+                statusText = "CLOSED"
+                statusColor = githubRed
+            default:
+                statusText = pr.state.uppercased()
+                statusColor = .systemGray
+            }
+        }
+
+        // Create status pill image
+        let pillImage = createPillImage(text: statusText, backgroundColor: statusColor, textColor: .white)
+
+        // Create attributed string for the first line
+        let titleFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let mutedFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+
+        let attributedTitle = NSMutableAttributedString()
+
+        // Add repo name/PR number or just PR number based on includeRepoName parameter
+        if includeRepoName {
+            let repoText = "\(pr.repository.nameWithOwner) #\(pr.number): "
+            let repoAttributes: [NSAttributedString.Key: Any] = [
+                .font: mutedFont,
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+            attributedTitle.append(NSAttributedString(string: repoText, attributes: repoAttributes))
+        } else {
+            let numberText = "#\(pr.number): "
+            let numberAttributes: [NSAttributedString.Key: Any] = [
+                .font: mutedFont,
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+            attributedTitle.append(NSAttributedString(string: numberText, attributes: numberAttributes))
+        }
+
+        // Add PR title (normal color)
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: NSColor.labelColor
+        ]
+        attributedTitle.append(NSAttributedString(string: pr.title, attributes: titleAttributes))
+
+        // Add status pill with proper baseline alignment
+        attributedTitle.append(NSAttributedString(string: " "))
+        let attachment = NSTextAttachment()
+        attachment.image = pillImage
+
+        // Calculate baseline offset to align pill with text
+        // Using xHeight (height of lowercase 'x') as baseline reference
+        let fontMetrics = titleFont.xHeight
+        let imageHeight = pillImage.size.height
+        let baselineOffset = (fontMetrics - imageHeight) / 2
+
+        let attachmentString = NSAttributedString(attachment: attachment)
+        let mutableAttachment = NSMutableAttributedString(attributedString: attachmentString)
+        mutableAttachment.addAttribute(.baselineOffset, value: baselineOffset, range: NSRange(location: 0, length: 1))
+        attributedTitle.append(mutableAttachment)
+
+        // Combine both lines
+        let fullTitle = attributedTitle.mutableCopy() as! NSMutableAttributedString
+        fullTitle.append(NSAttributedString(string: "\n"))
+
+        let metadataAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor
+        ]
+        fullTitle.append(NSAttributedString(string: metadataLine, attributes: metadataAttributes))
+
+        // Create menu item with attributed string
+        let menuItem = NSMenuItem()
+        menuItem.attributedTitle = fullTitle
+        menuItem.action = #selector(openPR(_:))
+        menuItem.target = self
+        menuItem.representedObject = pr.url
+
+        return menuItem
+    }
 
     /// GitHub's official brand colors for PR statuses
     private var githubGreen: NSColor {

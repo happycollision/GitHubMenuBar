@@ -17,6 +17,9 @@ struct SettingsView: View {
     @State private var refreshInterval: RefreshInterval
     @State private var customIntervalText: String = ""
 
+    /// Group by repository setting
+    @State private var groupByRepo: Bool
+
     /// Callback to trigger refresh when settings change
     var onSettingsChanged: (() -> Void)?
 
@@ -60,6 +63,9 @@ struct SettingsView: View {
             _refreshInterval = State(initialValue: .custom)
             _customIntervalText = State(initialValue: String(currentInterval))
         }
+
+        // Initialize group by repo from AppSettings
+        _groupByRepo = State(initialValue: AppSettings.shared.groupByRepo)
     }
 
     // MARK: - Body
@@ -138,6 +144,23 @@ struct SettingsView: View {
 
             Divider()
 
+            // Group by repository section
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Display Options")
+                    .font(.headline)
+
+                Toggle("Group by Repository", isOn: $groupByRepo)
+                    .onChange(of: groupByRepo) { newValue in
+                        updateGroupByRepo(newValue: newValue)
+                    }
+
+                Text("When enabled, PRs are organized by repository with headers.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Divider()
+
             // Info text
             Text("Changes take effect immediately and will be remembered.")
                 .font(.caption)
@@ -180,6 +203,14 @@ struct SettingsView: View {
 
         if newInterval != AppSettings.shared.refreshIntervalMinutes {
             AppSettings.shared.refreshIntervalMinutes = newInterval
+            onSettingsChanged?()
+        }
+    }
+
+    /// Updates the group by repo setting in AppSettings
+    private func updateGroupByRepo(newValue: Bool) {
+        if newValue != AppSettings.shared.groupByRepo {
+            AppSettings.shared.groupByRepo = newValue
             onSettingsChanged?()
         }
     }
