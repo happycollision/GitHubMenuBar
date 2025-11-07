@@ -118,7 +118,7 @@ class MenuBarController: NSObject {
     /// Rebuilds the entire menu based on current state.
     ///
     /// The menu structure is:
-    /// - Title: "GitHub PR Reviews" (disabled)
+    /// - Title: "GitHub PR Reviews" or "GitHub PR Reviews (Refreshing...)"
     /// - Separator
     /// - "Refresh" action
     /// - "Filter by Status" submenu
@@ -127,7 +127,6 @@ class MenuBarController: NSObject {
     ///   - "Loading..." (if isLoading AND no cached PRs)
     ///   - "Error: ..." (if lastError is set AND no cached PRs)
     ///   - "No pending reviews" (if pullRequests is empty)
-    ///   - "Refreshing..." indicator + List of PRs (if isLoading with cached data)
     ///   - List of PRs (clickable multi-line items)
     /// - Padding items (to ensure minimum height equivalent to 10 PRs)
     /// - Separator
@@ -141,9 +140,36 @@ class MenuBarController: NSObject {
     private func updateMenu() {
         menu.removeAllItems()
 
-        // Title
-        let titleItem = NSMenuItem(title: "GitHub PR Reviews", action: nil, keyEquivalent: "")
-        titleItem.isEnabled = false
+        // Title with optional refreshing indicator
+        let titleText: String
+        if isLoading && !pullRequests.isEmpty {
+            titleText = "GitHub PR Reviews (Refreshing...)"
+        } else {
+            titleText = "GitHub PR Reviews"
+        }
+
+        // Create attributed string with bold, black text
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize),
+            .foregroundColor: NSColor.black
+        ]
+        let attributedTitle = NSAttributedString(string: titleText, attributes: titleAttributes)
+
+        // Create a custom view for the title so it doesn't have hover state
+        let titleLabel = NSTextField(labelWithAttributedString: attributedTitle)
+        titleLabel.isEditable = false
+        titleLabel.isSelectable = false
+        titleLabel.isBordered = false
+        titleLabel.drawsBackground = false
+        titleLabel.sizeToFit()
+
+        // Add minimal padding to match standard menu item appearance
+        let paddedView = NSView(frame: NSRect(x: 0, y: 0, width: titleLabel.frame.width + 24, height: titleLabel.frame.height + 6))
+        titleLabel.frame.origin = NSPoint(x: 12, y: 3)
+        paddedView.addSubview(titleLabel)
+
+        let titleItem = NSMenuItem()
+        titleItem.view = paddedView
         menu.addItem(titleItem)
         menu.addItem(NSMenuItem.separator())
 
@@ -202,24 +228,6 @@ class MenuBarController: NSObject {
             menu.addItem(emptyItem)
             contentItemCount = 1
         } else {
-            // If refreshing with existing data, show a subtle indicator
-            if isLoading {
-                let refreshingItem = NSMenuItem(title: "Refreshing...", action: nil, keyEquivalent: "")
-                refreshingItem.isEnabled = false
-                // Use a slightly different color to indicate it's a status message
-                let attributedTitle = NSAttributedString(
-                    string: "Refreshing...",
-                    attributes: [
-                        .font: NSFont.menuFont(ofSize: 0),
-                        .foregroundColor: NSColor.secondaryLabelColor
-                    ]
-                )
-                refreshingItem.attributedTitle = attributedTitle
-                menu.addItem(refreshingItem)
-                menu.addItem(NSMenuItem.separator())
-                contentItemCount += 1
-            }
-
             // Create a menu item for each PR
             for pr in pullRequests {
                 // Build metadata line in order: age, author, assignees, comments
@@ -462,7 +470,7 @@ class MenuBarController: NSObject {
 
     /// Cleanup when the controller is deallocated.
     ///
-    /// Invalidates the refresh timer to prevent it from firing after deallocation.
+    /// Invalidates timers to prevent them from firing after deallocation.
     /// Uses MainActor.assumeIsolated since deinit is nonisolated but we need
     /// to access main-actor-isolated properties.
     nonisolated deinit {
