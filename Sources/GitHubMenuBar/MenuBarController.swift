@@ -33,6 +33,9 @@ class MenuBarController: NSObject {
     /// Timer for automatic refresh (interval configured in AppSettings)
     private var refreshTimer: Timer?
 
+    /// Currently running refresh task (to support cancellation)
+    private var currentRefreshTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     override init() {
@@ -105,26 +108,39 @@ class MenuBarController: NSObject {
     /// Fetches the latest PR review requests from GitHub.
     ///
     /// This method:
-    /// 1. Sets loading state and updates menu to show "Loading..."
-    /// 2. Calls GitHubService to fetch PRs
-    /// 3. Updates internal state (pullRequests or lastError)
-    /// 4. Clears loading state and updates menu with results
-    /// 5. Updates the badge count on the menu bar icon
+    /// 1. Cancels any ongoing refresh to prevent race conditions
+    /// 2. Sets loading state and updates menu to show "Loading..."
+    /// 3. Calls GitHubService to fetch PRs
+    /// 4. Updates internal state (pullRequests or lastError)
+    /// 5. Clears loading state and updates menu with results
+    /// 6. Updates the badge count on the menu bar icon
     @objc private func refresh() async {
-        isLoading = true
-        updateMenu()
+        // Cancel any ongoing refresh task to prevent race conditions
+        currentRefreshTask?.cancel()
 
-        do {
-            pullRequests = try await GitHubService.shared.fetchReviewRequests()
-            lastError = nil
-        } catch {
-            lastError = error.localizedDescription
-            pullRequests = []
+        // Create a new task for this refresh operation
+        currentRefreshTask = Task { @MainActor in
+            isLoading = true
+            updateMenu()
+
+            do {
+                pullRequests = try await GitHubService.shared.fetchReviewRequests()
+                lastError = nil
+            } catch is CancellationError {
+                // Task was cancelled, don't update state
+                return
+            } catch {
+                lastError = error.localizedDescription
+                pullRequests = []
+            }
+
+            isLoading = false
+            updateMenu()
+            updateBadge()
         }
 
-        isLoading = false
-        updateMenu()
-        updateBadge()
+        // Wait for the task to complete
+        await currentRefreshTask?.value
     }
 
     // MARK: - UI Updates

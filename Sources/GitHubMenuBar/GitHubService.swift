@@ -72,19 +72,40 @@ final class GitHubService: Sendable {
         process.standardError = pipe
 
         try process.run()
-        process.waitUntilExit()
 
-        if process.terminationStatus != 0 {
-            let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
-            let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-            throw AppError.commandFailed(errorMessage)
+        // Check for cancellation before waiting
+        try Task.checkCancellation()
+
+        // Use withTaskCancellationHandler to terminate the process if task is cancelled
+        return try await withTaskCancellationHandler {
+            // Wait for process to complete
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                DispatchQueue.global().async {
+                    process.waitUntilExit()
+                    continuation.resume()
+                }
+            }
+
+            // Check again after process completes
+            try Task.checkCancellation()
+
+            if process.terminationStatus != 0 {
+                let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
+                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+                throw AppError.commandFailed(errorMessage)
+            }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode([PullRequest].self, from: data)
+        } onCancel: {
+            // Terminate the process if the task is cancelled
+            if process.isRunning {
+                process.terminate()
+            }
         }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode([PullRequest].self, from: data)
     }
 
     /// Fetches all pull requests where the current user has been requested as a reviewer.
@@ -95,10 +116,14 @@ final class GitHubService: Sendable {
     ///
     /// - Returns: Array of `PullRequest` objects, deduplicated by ID
     /// - Throws: `AppError` if gh is not installed, not authenticated, command fails, or JSON parsing fails
+    /// - Throws: `CancellationError` if the task is cancelled
     func fetchReviewRequests() async throws -> [PullRequest] {
         // First check if gh is installed and authenticated
         try await checkGHInstalled()
         try await checkAuthentication()
+
+        // Check for cancellation before starting queries
+        try Task.checkCancellation()
 
         let included = await AppSettings.shared.includedStatuses
         if included.isEmpty {
@@ -122,6 +147,9 @@ final class GitHubService: Sendable {
                 let draftPRs = try await executeQuery(arguments: draftArgs)
                 allPRs.append(contentsOf: draftPRs)
                 print("DEBUG: Fetched \(draftPRs.count) draft PRs")
+
+                // Check for cancellation between queries
+                try Task.checkCancellation()
             }
 
             if hasOpen {
@@ -130,6 +158,9 @@ final class GitHubService: Sendable {
                 let openPRs = try await executeQuery(arguments: openArgs)
                 allPRs.append(contentsOf: openPRs)
                 print("DEBUG: Fetched \(openPRs.count) open non-draft PRs")
+
+                // Check for cancellation between queries
+                try Task.checkCancellation()
             }
 
             if hasMerged || hasClosed {
@@ -144,6 +175,9 @@ final class GitHubService: Sendable {
                 }
                 allPRs.append(contentsOf: filtered)
                 print("DEBUG: Fetched \(closedPRs.count) closed PRs, kept \(filtered.count) after filtering")
+
+                // Check for cancellation after final query
+                try Task.checkCancellation()
             }
 
             // Deduplicate by ID (in case a PR appears in multiple queries)
@@ -162,6 +196,9 @@ final class GitHubService: Sendable {
 
             print("DEBUG: Total PRs after deduplication and sorting: \(sorted.count)")
             return sorted
+        } catch is CancellationError {
+            // Propagate cancellation error up
+            throw CancellationError()
         } catch let error as AppError {
             throw error
         } catch {
