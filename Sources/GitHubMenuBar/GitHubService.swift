@@ -343,8 +343,12 @@ final class GitHubService: Sendable {
             // across all PR states (draft, open, closed, merged)
             let sorted = filteredByReview.sorted { $0.createdAt > $1.createdAt }
 
-            print("DEBUG: Total PRs after deduplication, review filtering, and sorting: \(sorted.count)")
-            return sorted
+            // Limit to 50 PRs to avoid overwhelming the UI
+            // Since we make multiple API calls (one per status), we could get more than 50 total
+            let limited = Array(sorted.prefix(50))
+
+            print("DEBUG: Total PRs after deduplication, review filtering, and sorting: \(sorted.count), limited to: \(limited.count)")
+            return limited
         } catch is CancellationError {
             // Propagate cancellation error up
             throw CancellationError()
