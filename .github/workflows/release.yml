@@ -31,19 +31,51 @@ jobs:
       - name: Generate release notes
         id: release_notes
         run: |
-          # Get previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          VERSION=${GITHUB_REF#refs/tags/v}
+          TAG_NAME="v${VERSION}"
 
-          # Generate changelog
-          if [ -z "$PREV_TAG" ]; then
-            echo "notes=Initial release of GitHubMenuBar" >> $GITHUB_OUTPUT
+          # Determine if this is a prerelease based on version string
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            IS_PRERELEASE="true"
           else
-            echo "notes<<EOF" >> $GITHUB_OUTPUT
-            echo "## What's Changed" >> $GITHUB_OUTPUT
-            git log ${PREV_TAG}..HEAD --pretty=format:"- %s" >> $GITHUB_OUTPUT
-            echo "" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            IS_PRERELEASE="false"
           fi
+          echo "prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
+
+          # Extract author's note from template
+          AUTHOR_NOTE=$(sed -n '/^> A note from/,/^> But this toolbar app/p' .github/RELEASE_NOTES_TEMPLATE.md)
+
+          # Extract changelog for this version from CHANGELOG.md (excluding Internal section)
+          CHANGELOG_ENTRY=$(awk -v version="$VERSION" '
+            /^## \['"$VERSION"'\]/ { found=1; next }
+            found && /^## \[/ { exit }
+            found && /^### Internal/ { skip=1; next }
+            found && /^### / { skip=0 }
+            found && !skip && NF > 0 { print }
+          ' CHANGELOG.md)
+
+          # Build release notes
+          {
+            echo "notes<<EOF"
+            echo "$AUTHOR_NOTE"
+            echo ""
+            echo "---"
+            echo ""
+            if [ -n "$CHANGELOG_ENTRY" ]; then
+              echo "## What's New in v${VERSION}"
+              echo ""
+              echo "$CHANGELOG_ENTRY"
+              echo ""
+              echo "---"
+              echo ""
+              echo "📋 [View full CHANGELOG.md at this release](https://github.com/${{ github.repository }}/blob/${TAG_NAME}/CHANGELOG.md)"
+            else
+              echo "## What's Changed"
+              echo ""
+              echo "📋 [View CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${TAG_NAME}/CHANGELOG.md) for details."
+            fi
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -72,6 +104,7 @@ jobs:
           files: |
             dist/GitHubMenuBar.zip
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.release_notes.outputs.prerelease }}
+          make_latest: ${{ steps.release_notes.outputs.prerelease == 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
