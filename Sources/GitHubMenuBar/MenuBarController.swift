@@ -192,10 +192,10 @@ class MenuBarController: NSObject {
             titleText = "GitHub PR Reviews"
         }
 
-        // Create attributed string with bold, black text for title
+        // Create attributed string with bold text for title
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize),
-            .foregroundColor: NSColor.black
+            .foregroundColor: NSColor.labelColor
         ]
         let attributedTitle = NSAttributedString(string: titleText, attributes: titleAttributes)
 
@@ -301,13 +301,13 @@ class MenuBarController: NSObject {
                 for repoName in sortedRepos {
                     guard let repoPRs = prsByRepo[repoName] else { continue }
 
-                    // Add repository header with bold, black text
+                    // Add repository header with bold text
                     let prCount = repoPRs.count
                     let headerText = "\(repoName) (\(prCount) PR\(prCount == 1 ? "" : "s"))"
 
                     let headerAttributes: [NSAttributedString.Key: Any] = [
                         .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize),
-                        .foregroundColor: NSColor.black
+                        .foregroundColor: NSColor.labelColor
                     ]
                     let attributedHeader = NSAttributedString(string: headerText, attributes: headerAttributes)
 
