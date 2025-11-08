@@ -24,6 +24,9 @@ class MenuBarController: NSObject {
     /// Currently loaded pull requests
     private var pullRequests: [PullRequest] = []
 
+    /// Whether there are more PRs available beyond what's displayed
+    private var hasMorePRs = false
+
     /// Whether a refresh is currently in progress
     private var isLoading = false
 
@@ -124,7 +127,9 @@ class MenuBarController: NSObject {
             updateMenu()
 
             do {
-                pullRequests = try await GitHubService.shared.fetchReviewRequests()
+                let result = try await GitHubService.shared.fetchReviewRequests()
+                pullRequests = result.pullRequests
+                hasMorePRs = result.hasMore
                 lastError = nil
             } catch is CancellationError {
                 // Task was cancelled, don't update state
@@ -132,6 +137,7 @@ class MenuBarController: NSObject {
             } catch {
                 lastError = error.localizedDescription
                 pullRequests = []
+                hasMorePRs = false
             }
 
             isLoading = false
@@ -148,11 +154,16 @@ class MenuBarController: NSObject {
     /// Updates the badge count on the menu bar icon.
     ///
     /// Shows the number of pending PRs next to the icon, or nothing if zero.
+    /// If there are more PRs available beyond the displayed limit, shows "50+".
     private func updateBadge() {
         if let button = statusItem.button {
             let count = pullRequests.count
             if count > 0 {
-                button.title = " \(count)"
+                if hasMorePRs {
+                    button.title = " 50+"
+                } else {
+                    button.title = " \(count)"
+                }
             } else {
                 button.title = ""
             }

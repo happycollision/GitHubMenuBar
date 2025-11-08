@@ -55,11 +55,20 @@ final class GitHubService: Sendable {
         }
     }
 
+    /// Result of a query including PRs and pagination info
+    struct QueryResult {
+        let pullRequests: [PullRequest]
+        let hasMore: Bool
+    }
+
     /// Helper method to execute a GraphQL query
-    private func executeQuery(searchQuery: String) async throws -> [PullRequest] {
+    private func executeQuery(searchQuery: String) async throws -> QueryResult {
         let graphqlQuery = """
         {
           search(query: "\(searchQuery)", type: ISSUE, first: 50) {
+            pageInfo {
+              hasNextPage
+            }
             edges {
               node {
                 ... on PullRequest {
@@ -135,7 +144,12 @@ final class GitHubService: Sendable {
                 }
 
                 struct SearchResults: Codable {
+                    let pageInfo: PageInfo
                     let edges: [Edge]
+                }
+
+                struct PageInfo: Codable {
+                    let hasNextPage: Bool
                 }
 
                 struct Edge: Codable {
@@ -183,7 +197,7 @@ final class GitHubService: Sendable {
 
             // Convert GraphQL response to PullRequest models
             let dateFormatter = ISO8601DateFormatter()
-            return response.data.search.edges.compactMap { edge in
+            let pullRequests: [PullRequest] = response.data.search.edges.compactMap { edge in
                 guard let createdAt = dateFormatter.date(from: edge.node.createdAt) else {
                     return nil
                 }
@@ -203,6 +217,11 @@ final class GitHubService: Sendable {
                     reviewDecision: edge.node.reviewDecision
                 )
             }
+
+            return QueryResult(
+                pullRequests: pullRequests,
+                hasMore: response.data.search.pageInfo.hasNextPage
+            )
         } onCancel: {
             // Terminate the process if the task is cancelled
             if process.isRunning {
@@ -217,10 +236,10 @@ final class GitHubService: Sendable {
     /// - Makes separate queries for each status (draft, open, closed) to avoid 50-PR limit issues
     /// - This ensures we get up to 50 PRs of each type instead of 50 total mixed PRs
     ///
-    /// - Returns: Array of `PullRequest` objects, deduplicated by ID
+    /// - Returns: A tuple containing an array of `PullRequest` objects and a `hasMore` flag
     /// - Throws: `AppError` if gh is not installed, not authenticated, command fails, or JSON parsing fails
     /// - Throws: `CancellationError` if the task is cancelled
-    func fetchReviewRequests() async throws -> [PullRequest] {
+    func fetchReviewRequests() async throws -> (pullRequests: [PullRequest], hasMore: Bool) {
         // First check if gh is installed and authenticated
         try await checkGHInstalled()
         try await checkAuthentication()
@@ -230,7 +249,7 @@ final class GitHubService: Sendable {
 
         let included = await AppSettings.shared.includedStatuses
         if included.isEmpty {
-            return []
+            return (pullRequests: [], hasMore: false)
         }
 
         // Build filter strings for GraphQL query
@@ -276,6 +295,7 @@ final class GitHubService: Sendable {
         let hasClosed = included.contains(.closed)
 
         var allPRs: [PullRequest] = []
+        var anyHasMore = false
 
         // Strategy: Make separate queries for each status to avoid 50-PR limit issues
         // This ensures we get up to 50 PRs of each type instead of 50 total mixed PRs
@@ -284,9 +304,10 @@ final class GitHubService: Sendable {
             if hasDraft {
                 // Query for all drafts
                 let draftQuery = "type:pr review-requested:@me is:draft \(baseFilters)".trimmingCharacters(in: .whitespaces)
-                let draftPRs = try await executeQuery(searchQuery: draftQuery)
-                allPRs.append(contentsOf: draftPRs)
-                print("DEBUG: Fetched \(draftPRs.count) draft PRs")
+                let result = try await executeQuery(searchQuery: draftQuery)
+                allPRs.append(contentsOf: result.pullRequests)
+                anyHasMore = anyHasMore || result.hasMore
+                print("DEBUG: Fetched \(result.pullRequests.count) draft PRs, hasMore: \(result.hasMore)")
 
                 // Check for cancellation between queries
                 try Task.checkCancellation()
@@ -295,9 +316,10 @@ final class GitHubService: Sendable {
             if hasOpen {
                 // Query for non-draft open PRs
                 let openQuery = "type:pr review-requested:@me is:open draft:false \(baseFilters)".trimmingCharacters(in: .whitespaces)
-                let openPRs = try await executeQuery(searchQuery: openQuery)
-                allPRs.append(contentsOf: openPRs)
-                print("DEBUG: Fetched \(openPRs.count) open non-draft PRs")
+                let result = try await executeQuery(searchQuery: openQuery)
+                allPRs.append(contentsOf: result.pullRequests)
+                anyHasMore = anyHasMore || result.hasMore
+                print("DEBUG: Fetched \(result.pullRequests.count) open non-draft PRs, hasMore: \(result.hasMore)")
 
                 // Check for cancellation between queries
                 try Task.checkCancellation()
@@ -306,15 +328,16 @@ final class GitHubService: Sendable {
             if hasMerged || hasClosed {
                 // Query for non-draft closed PRs (includes both merged and closed)
                 let closedQuery = "type:pr review-requested:@me is:closed draft:false \(baseFilters)".trimmingCharacters(in: .whitespaces)
-                let closedPRs = try await executeQuery(searchQuery: closedQuery)
+                let result = try await executeQuery(searchQuery: closedQuery)
 
                 // Filter to only include merged or closed as requested
-                let filtered = closedPRs.filter { pr in
+                let filtered = result.pullRequests.filter { pr in
                     let state = pr.state.uppercased()
                     return (state == "MERGED" && hasMerged) || (state == "CLOSED" && hasClosed)
                 }
                 allPRs.append(contentsOf: filtered)
-                print("DEBUG: Fetched \(closedPRs.count) closed PRs, kept \(filtered.count) after filtering")
+                anyHasMore = anyHasMore || result.hasMore
+                print("DEBUG: Fetched \(result.pullRequests.count) closed PRs, kept \(filtered.count) after filtering, hasMore: \(result.hasMore)")
 
                 // Check for cancellation after final query
                 try Task.checkCancellation()
@@ -347,8 +370,12 @@ final class GitHubService: Sendable {
             // Since we make multiple API calls (one per status), we could get more than 50 total
             let limited = Array(sorted.prefix(50))
 
-            print("DEBUG: Total PRs after deduplication, review filtering, and sorting: \(sorted.count), limited to: \(limited.count)")
-            return limited
+            // If we had more than 50 PRs after filtering, or any query had more results available,
+            // indicate that there are more PRs not being shown
+            let hasMoreResults = anyHasMore || sorted.count > 50
+
+            print("DEBUG: Total PRs after deduplication, review filtering, and sorting: \(sorted.count), limited to: \(limited.count), hasMore: \(hasMoreResults)")
+            return (pullRequests: limited, hasMore: hasMoreResults)
         } catch is CancellationError {
             // Propagate cancellation error up
             throw CancellationError()
