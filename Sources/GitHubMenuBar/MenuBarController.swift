@@ -378,28 +378,76 @@ class MenuBarController: NSObject {
 
     // MARK: - Helper Methods
 
-    /// Creates a menu item for a pull request with formatted title and metadata.
+    /// Custom clickable view for menu items that forwards clicks to the menu item's action.
+    private class ClickablePRView: NSView {
+        var onClick: (() -> Void)?
+        private var trackingArea: NSTrackingArea?
+        private var isHovered = false {
+            didSet {
+                needsDisplay = true
+            }
+        }
+
+        override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            setupTrackingArea()
+        }
+
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+            setupTrackingArea()
+        }
+
+        private func setupTrackingArea() {
+            let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
+            trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+            addTrackingArea(trackingArea!)
+        }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+
+            if let existingArea = trackingArea {
+                removeTrackingArea(existingArea)
+            }
+
+            let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
+            trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+            addTrackingArea(trackingArea!)
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            isHovered = true
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            isHovered = false
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            onClick?()
+            // Close the menu after click
+            self.enclosingMenuItem?.menu?.cancelTracking()
+        }
+
+        override func draw(_ dirtyRect: NSRect) {
+            super.draw(dirtyRect)
+
+            if isHovered {
+                // Use a subtle highlight color for hover effect
+                NSColor.controlAccentColor.withAlphaComponent(0.15).setFill()
+                bounds.fill()
+            }
+        }
+    }
+
+    /// Creates a custom view for displaying a PR menu item with pills on the second line.
     ///
     /// - Parameters:
-    ///   - pr: The pull request to create a menu item for
+    ///   - pr: The pull request to create a view for
     ///   - includeRepoName: Whether to include the repository name in the title
-    /// - Returns: A configured NSMenuItem ready to be added to the menu
-    private func createPRMenuItem(pr: PullRequest, includeRepoName: Bool) -> NSMenuItem {
-        // Format the metadata line (age, author, assignees, comments)
-        var metadataParts: [String] = []
-        metadataParts.append("opened \(pr.formattedAge())")
-        metadataParts.append("by \(pr.author.login)")
-
-        if !pr.assignees.isEmpty {
-            metadataParts.append("\(pr.assignees.count) assignee\(pr.assignees.count == 1 ? "" : "s")")
-        }
-
-        if pr.commentsCount > 0 {
-            metadataParts.append("\(pr.commentsCount) comment\(pr.commentsCount == 1 ? "" : "s")")
-        }
-
-        let metadataLine = "   " + metadataParts.joined(separator: " • ")
-
+    /// - Returns: A configured NSView ready to be used as menu item view
+    private func createPRView(pr: PullRequest, includeRepoName: Bool) -> NSView {
         // Determine status text and color
         let (statusText, statusColor): (String, NSColor)
         if pr.isDraft {
@@ -422,115 +470,129 @@ class MenuBarController: NSObject {
             }
         }
 
-        // Create status pill image
-        let pillImage = createPillImage(text: statusText, backgroundColor: statusColor, textColor: .white)
+        // Create status pill image with fixed width for alignment
+        // Calculate width needed for "MERGED" (longest status text) to ensure consistent alignment
+        let font = NSFont.boldSystemFont(ofSize: NSFont.smallSystemFontSize)
+        let longestStatusText = "MERGED"
+        let statusMinWidth = (longestStatusText as NSString).size(withAttributes: [.font: font]).width
+        let statusPillImage = createPillImage(text: statusText, backgroundColor: statusColor, textColor: .white, minWidth: statusMinWidth)
 
-        // Create attributed string for the first line
-        let titleFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-        let mutedFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-
-        let attributedTitle = NSMutableAttributedString()
-
-        // Add repo name/PR number or just PR number based on includeRepoName parameter
-        if includeRepoName {
-            let repoText = "\(pr.repository.nameWithOwner) #\(pr.number): "
-            let repoAttributes: [NSAttributedString.Key: Any] = [
-                .font: mutedFont,
-                .foregroundColor: NSColor.secondaryLabelColor
-            ]
-            attributedTitle.append(NSAttributedString(string: repoText, attributes: repoAttributes))
-        } else {
-            let numberText = "#\(pr.number): "
-            let numberAttributes: [NSAttributedString.Key: Any] = [
-                .font: mutedFont,
-                .foregroundColor: NSColor.secondaryLabelColor
-            ]
-            attributedTitle.append(NSAttributedString(string: numberText, attributes: numberAttributes))
-        }
-
-        // Add PR title (normal color)
-        let titleAttributes: [NSAttributedString.Key: Any] = [
-            .font: titleFont,
-            .foregroundColor: NSColor.labelColor
-        ]
-        attributedTitle.append(NSAttributedString(string: pr.title, attributes: titleAttributes))
-
-        // Add status pill with proper baseline alignment
-        attributedTitle.append(NSAttributedString(string: " "))
-        let attachment = NSTextAttachment()
-        attachment.image = pillImage
-
-        // Calculate baseline offset to align pill with text
-        // Using xHeight (height of lowercase 'x') as baseline reference
-        let fontMetrics = titleFont.xHeight
-        let imageHeight = pillImage.size.height
-        let baselineOffset = (fontMetrics - imageHeight) / 2
-
-        let attachmentString = NSAttributedString(attachment: attachment)
-        let mutableAttachment = NSMutableAttributedString(attributedString: attachmentString)
-        mutableAttachment.addAttribute(.baselineOffset, value: baselineOffset, range: NSRange(location: 0, length: 1))
-        attributedTitle.append(mutableAttachment)
-
-        // Add review decision pill if available
-        var reviewDecisionTooltip: String? = nil
+        // Create review decision pill if available
+        var reviewPillImage: NSImage? = nil
+        var reviewTooltip: String? = nil
         if let decision = ReviewDecision(apiValue: pr.reviewDecision) {
             let (reviewText, reviewColor): (String, NSColor)
             switch decision {
             case .approved:
                 reviewText = "✓"
                 reviewColor = githubGreen
-                reviewDecisionTooltip = "Review Status: Approved"
+                reviewTooltip = "Review Status: Approved"
             case .changesRequested:
                 reviewText = "⚠"
-                reviewColor = NSColor(red: 0xbf / 255.0, green: 0x8b / 255.0, blue: 0x00 / 255.0, alpha: 1.0)  // Dark golden
-                reviewDecisionTooltip = "Review Status: Changes Requested"
+                reviewColor = NSColor(red: 0xbf / 255.0, green: 0x8b / 255.0, blue: 0x00 / 255.0, alpha: 1.0)
+                reviewTooltip = "Review Status: Changes Requested"
             case .reviewRequired:
                 reviewText = "○"
                 reviewColor = .systemGray
-                reviewDecisionTooltip = "Review Status: Review Required"
+                reviewTooltip = "Review Status: Review Required"
             case .noReview:
                 reviewText = "∅"
                 reviewColor = .systemGray
-                reviewDecisionTooltip = "Review Status: No Review Required"
+                reviewTooltip = "Review Status: No Review Required"
             }
-
-            if !reviewText.isEmpty {
-                let reviewPillImage = createPillImage(text: reviewText, backgroundColor: reviewColor, textColor: .white)
-                attributedTitle.append(NSAttributedString(string: " "))
-                let reviewAttachment = NSTextAttachment()
-                reviewAttachment.image = reviewPillImage
-
-                let reviewAttachmentString = NSAttributedString(attachment: reviewAttachment)
-                let mutableReviewAttachment = NSMutableAttributedString(attributedString: reviewAttachmentString)
-                let reviewImageHeight = reviewPillImage.size.height
-                let reviewBaselineOffset = (fontMetrics - reviewImageHeight) / 2
-                mutableReviewAttachment.addAttribute(.baselineOffset, value: reviewBaselineOffset, range: NSRange(location: 0, length: 1))
-                attributedTitle.append(mutableReviewAttachment)
-            }
+            reviewPillImage = createPillImage(text: reviewText, backgroundColor: reviewColor, textColor: .white)
         }
 
-        // Combine both lines
-        let fullTitle = attributedTitle.mutableCopy() as! NSMutableAttributedString
-        fullTitle.append(NSAttributedString(string: "\n"))
+        // Build first line text
+        let firstLineText: String
+        if includeRepoName {
+            firstLineText = "\(pr.repository.nameWithOwner) #\(pr.number): \(pr.title)"
+        } else {
+            firstLineText = "#\(pr.number): \(pr.title)"
+        }
 
-        let metadataAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        fullTitle.append(NSAttributedString(string: metadataLine, attributes: metadataAttributes))
+        // Build second line metadata
+        var metadataParts: [String] = []
+        metadataParts.append("opened \(pr.formattedAge())")
+        metadataParts.append("by \(pr.author.login)")
+        if !pr.assignees.isEmpty {
+            metadataParts.append("\(pr.assignees.count) assignee\(pr.assignees.count == 1 ? "" : "s")")
+        }
+        if pr.commentsCount > 0 {
+            metadataParts.append("\(pr.commentsCount) comment\(pr.commentsCount == 1 ? "" : "s")")
+        }
+        let metadataText = metadataParts.joined(separator: " • ")
 
-        // Create menu item with attributed string
+        // Create container view
+        let containerView = ClickablePRView(frame: NSRect(x: 0, y: 0, width: 500, height: 42))
+
+        // Create first line label
+        let firstLineLabel = NSTextField(labelWithString: firstLineText)
+        firstLineLabel.isEditable = false
+        firstLineLabel.isSelectable = false
+        firstLineLabel.isBordered = false
+        firstLineLabel.drawsBackground = false
+        firstLineLabel.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        firstLineLabel.textColor = .labelColor
+        firstLineLabel.frame = NSRect(x: 12, y: 22, width: 476, height: 18)
+        containerView.addSubview(firstLineLabel)
+
+        // Create second line with pills and metadata
+        var xOffset: CGFloat = 12
+
+        // Add status pill
+        let statusImageView = NSImageView(image: statusPillImage)
+        statusImageView.frame = NSRect(x: xOffset, y: 4, width: statusPillImage.size.width, height: statusPillImage.size.height)
+        containerView.addSubview(statusImageView)
+        xOffset += statusPillImage.size.width + 4
+
+        // Add review pill if available
+        if let reviewImage = reviewPillImage {
+            let reviewImageView = NSImageView(image: reviewImage)
+            reviewImageView.frame = NSRect(x: xOffset, y: 4, width: reviewImage.size.width, height: reviewImage.size.height)
+
+            // Add tooltip to the review pill
+            if let tooltip = reviewTooltip {
+                reviewImageView.toolTip = tooltip
+            }
+
+            containerView.addSubview(reviewImageView)
+            xOffset += reviewImage.size.width + 4
+        }
+
+        // Add metadata label
+        let metadataLabel = NSTextField(labelWithString: metadataText)
+        metadataLabel.isEditable = false
+        metadataLabel.isSelectable = false
+        metadataLabel.isBordered = false
+        metadataLabel.drawsBackground = false
+        metadataLabel.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        metadataLabel.textColor = .secondaryLabelColor
+        metadataLabel.frame = NSRect(x: xOffset, y: 2, width: 476 - (xOffset - 12), height: 16)
+        containerView.addSubview(metadataLabel)
+
+        return containerView
+    }
+
+    /// Creates a menu item for a pull request with formatted title and metadata.
+    ///
+    /// - Parameters:
+    ///   - pr: The pull request to create a menu item for
+    ///   - includeRepoName: Whether to include the repository name in the title
+    /// - Returns: A configured NSMenuItem ready to be added to the menu
+    private func createPRMenuItem(pr: PullRequest, includeRepoName: Bool) -> NSMenuItem {
         let menuItem = NSMenuItem()
-        menuItem.attributedTitle = fullTitle
-        menuItem.action = #selector(openPR(_:))
-        menuItem.target = self
-        menuItem.representedObject = pr.url
+        let prView = createPRView(pr: pr, includeRepoName: includeRepoName)
 
-        // Add tooltip for review decision if available
-        if let tooltip = reviewDecisionTooltip {
-            menuItem.toolTip = tooltip
+        // Set up click handler
+        if let clickableView = prView as? ClickablePRView {
+            clickableView.onClick = {
+                guard let url = URL(string: pr.url) else { return }
+                NSWorkspace.shared.open(url)
+            }
         }
 
+        menuItem.view = prView
         return menuItem
     }
 
@@ -553,8 +615,9 @@ class MenuBarController: NSObject {
     ///   - text: The text to display in the pill
     ///   - backgroundColor: The background color of the pill
     ///   - textColor: The text color
+    ///   - minWidth: Optional minimum width for the pill (excluding padding)
     /// - Returns: An NSImage of the rounded pill
-    private func createPillImage(text: String, backgroundColor: NSColor, textColor: NSColor) -> NSImage {
+    private func createPillImage(text: String, backgroundColor: NSColor, textColor: NSColor, minWidth: CGFloat? = nil) -> NSImage {
         let font = NSFont.boldSystemFont(ofSize: NSFont.smallSystemFontSize)
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: textColor]
         let textSize = (text as NSString).size(withAttributes: attributes)
@@ -562,7 +625,10 @@ class MenuBarController: NSObject {
         // Add padding around text
         let padding: CGFloat = 4
         let height: CGFloat = textSize.height + padding
-        let width: CGFloat = textSize.width + padding * 2
+
+        // Use minimum width if specified, otherwise use text width
+        let contentWidth = minWidth ?? textSize.width
+        let width: CGFloat = max(contentWidth, textSize.width) + padding * 2
         let cornerRadius: CGFloat = height / 2
 
         let image = NSImage(size: NSSize(width: width, height: height))
@@ -574,8 +640,10 @@ class MenuBarController: NSObject {
         backgroundColor.setFill()
         path.fill()
 
-        // Draw text centered
-        let textRect = NSRect(x: padding, y: padding / 2, width: textSize.width, height: textSize.height)
+        // Draw text centered horizontally and vertically
+        let textX = (width - textSize.width) / 2
+        let textY = padding / 2
+        let textRect = NSRect(x: textX, y: textY, width: textSize.width, height: textSize.height)
         (text as NSString).draw(in: textRect, withAttributes: attributes)
 
         image.unlockFocus()
