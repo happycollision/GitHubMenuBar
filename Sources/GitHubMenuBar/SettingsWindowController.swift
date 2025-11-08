@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+/// Custom window subclass that ensures proper first responder handling for SwiftUI content
+private class KeyWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 /// Controller for the settings window.
 ///
 /// This class manages:
@@ -38,6 +44,10 @@ class SettingsWindowController {
     /// If the window already exists, brings it to the front and focuses it.
     /// If it doesn't exist, creates a new window with the SettingsView.
     func showSettings() {
+        // Temporarily change activation policy to .regular to enable keyboard input
+        // LSUIElement apps (.accessory policy) don't properly handle keyboard events in windows
+        NSApp.setActivationPolicy(.regular)
+
         if let existingWindow = window {
             // Window exists, bring it to front
             existingWindow.makeKeyAndOrderFront(nil)
@@ -47,9 +57,10 @@ class SettingsWindowController {
             let settingsView = SettingsView(onSettingsChanged: onSettingsChanged)
             let hostingController = NSHostingController(rootView: settingsView)
 
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 350, height: 300),
-                styleMask: [.titled, .closable],
+            // Use custom KeyWindow class for proper first responder handling
+            let window = KeyWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 490, height: 700),
+                styleMask: [.titled, .closable, .resizable],
                 backing: .buffered,
                 defer: false
             )
@@ -58,8 +69,11 @@ class SettingsWindowController {
             window.center()
             window.isReleasedWhenClosed = false
 
-            // Make window float above other windows
-            window.level = .floating
+            // Set minimum size to prevent window from being too small
+            window.minSize = NSSize(width: 490, height: 500)
+
+            // Use normal window level for proper keyboard focus
+            window.level = .normal
 
             // Set delegate to handle window close
             let delegate = WindowDelegate(controller: self)
@@ -68,8 +82,14 @@ class SettingsWindowController {
 
             self.window = window
 
+            // Make window key and activate app
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+
+            // Force the window to accept first responder
+            DispatchQueue.main.async {
+                window.makeFirstResponder(hostingController.view)
+            }
         }
     }
 
@@ -93,6 +113,9 @@ class SettingsWindowController {
             // Clear the window and delegate references when user closes it
             controller?.window = nil
             controller?.windowDelegate = nil
+
+            // Restore accessory activation policy to hide from Dock
+            NSApp.setActivationPolicy(.accessory)
         }
     }
 }

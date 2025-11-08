@@ -13,6 +13,22 @@ enum PRStatus: String, CaseIterable {
     }
 }
 
+/// Enum representing the filter mode (whitelist or blacklist).
+enum FilterMode: String, Codable {
+    case whitelist = "whitelist"
+    case blacklist = "blacklist"
+
+    /// Display name for the mode
+    var displayName: String {
+        switch self {
+        case .whitelist:
+            return "Whitelist (Include Only)"
+        case .blacklist:
+            return "Blacklist (Exclude)"
+        }
+    }
+}
+
 /// Settings manager for user preferences using UserDefaults.
 ///
 /// This class manages persistent settings for the application, including which
@@ -29,6 +45,16 @@ class AppSettings: ObservableObject {
     private let excludedStatusesKey = "excludedPRStatuses"
     private let refreshIntervalKey = "refreshIntervalMinutes"
     private let groupByRepoKey = "groupByRepo"
+
+    // Filter keys
+    private let repoFilterEnabledKey = "repoFilterEnabled"
+    private let repoFilterModeKey = "repoFilterMode"
+    private let whitelistedRepositoriesKey = "whitelistedRepositories"
+    private let blacklistedRepositoriesKey = "blacklistedRepositories"
+    private let authorFilterEnabledKey = "authorFilterEnabled"
+    private let authorFilterModeKey = "authorFilterMode"
+    private let whitelistedAuthorsKey = "whitelistedAuthors"
+    private let blacklistedAuthorsKey = "blacklistedAuthors"
 
     /// Notification posted when settings change
     static let didChangeNotification = Notification.Name("AppSettingsDidChange")
@@ -48,6 +74,28 @@ class AppSettings: ObservableObject {
         // Initialize group by repo if not set (default to true)
         if defaults.object(forKey: groupByRepoKey) == nil {
             defaults.set(true, forKey: groupByRepoKey)
+        }
+
+        // Initialize filter settings if not set
+        if defaults.object(forKey: repoFilterEnabledKey) == nil {
+            defaults.set(false, forKey: repoFilterEnabledKey)
+        }
+
+        if defaults.object(forKey: repoFilterModeKey) == nil {
+            defaults.set(FilterMode.blacklist.rawValue, forKey: repoFilterModeKey)
+        }
+
+        if defaults.object(forKey: authorFilterEnabledKey) == nil {
+            defaults.set(true, forKey: authorFilterEnabledKey)
+        }
+
+        if defaults.object(forKey: authorFilterModeKey) == nil {
+            defaults.set(FilterMode.blacklist.rawValue, forKey: authorFilterModeKey)
+        }
+
+        // Initialize blacklisted authors with dependabot by default
+        if defaults.array(forKey: blacklistedAuthorsKey) == nil {
+            defaults.set(["dependabot", "dependabot[bot]"], forKey: blacklistedAuthorsKey)
         }
     }
 
@@ -137,6 +185,196 @@ class AppSettings: ObservableObject {
             defaults.set(newValue, forKey: groupByRepoKey)
             NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
         }
+    }
+
+    // MARK: - Repository Filtering
+
+    /// Get or set whether repository filtering is enabled.
+    var repoFilterEnabled: Bool {
+        get {
+            return defaults.bool(forKey: repoFilterEnabledKey)
+        }
+        set {
+            defaults.set(newValue, forKey: repoFilterEnabledKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get or set the repository filter mode (whitelist or blacklist).
+    var repoFilterMode: FilterMode {
+        get {
+            let rawValue = defaults.string(forKey: repoFilterModeKey) ?? FilterMode.blacklist.rawValue
+            return FilterMode(rawValue: rawValue) ?? .blacklist
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: repoFilterModeKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get or set the set of whitelisted repositories.
+    var whitelistedRepositories: Set<String> {
+        get {
+            let array = defaults.stringArray(forKey: whitelistedRepositoriesKey) ?? []
+            return Set(array)
+        }
+        set {
+            defaults.set(Array(newValue), forKey: whitelistedRepositoriesKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get or set the set of blacklisted repositories.
+    var blacklistedRepositories: Set<String> {
+        get {
+            let array = defaults.stringArray(forKey: blacklistedRepositoriesKey) ?? []
+            return Set(array)
+        }
+        set {
+            defaults.set(Array(newValue), forKey: blacklistedRepositoriesKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get the active repository filter based on enabled state and mode.
+    ///
+    /// - Returns: The set of repositories to filter, or nil if filtering is disabled
+    var activeRepositoryFilter: Set<String>? {
+        guard repoFilterEnabled else { return nil }
+        return repoFilterMode == .whitelist ? whitelistedRepositories : blacklistedRepositories
+    }
+
+    /// Get the repository filter type (include or exclude).
+    ///
+    /// - Returns: True for whitelist (include only), false for blacklist (exclude), nil if disabled
+    var isRepositoryWhitelist: Bool? {
+        guard repoFilterEnabled else { return nil }
+        return repoFilterMode == .whitelist
+    }
+
+    // MARK: - Author Filtering
+
+    /// Get or set whether author filtering is enabled.
+    var authorFilterEnabled: Bool {
+        get {
+            return defaults.bool(forKey: authorFilterEnabledKey)
+        }
+        set {
+            defaults.set(newValue, forKey: authorFilterEnabledKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get or set the author filter mode (whitelist or blacklist).
+    var authorFilterMode: FilterMode {
+        get {
+            let rawValue = defaults.string(forKey: authorFilterModeKey) ?? FilterMode.blacklist.rawValue
+            return FilterMode(rawValue: rawValue) ?? .blacklist
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: authorFilterModeKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get or set the set of whitelisted authors.
+    var whitelistedAuthors: Set<String> {
+        get {
+            let array = defaults.stringArray(forKey: whitelistedAuthorsKey) ?? []
+            return Set(array)
+        }
+        set {
+            defaults.set(Array(newValue), forKey: whitelistedAuthorsKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get or set the set of blacklisted authors.
+    var blacklistedAuthors: Set<String> {
+        get {
+            let array = defaults.stringArray(forKey: blacklistedAuthorsKey) ?? []
+            return Set(array)
+        }
+        set {
+            defaults.set(Array(newValue), forKey: blacklistedAuthorsKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get the active author filter based on enabled state and mode.
+    ///
+    /// - Returns: The set of authors to filter, or nil if filtering is disabled
+    var activeAuthorFilter: Set<String>? {
+        guard authorFilterEnabled else { return nil }
+        return authorFilterMode == .whitelist ? whitelistedAuthors : blacklistedAuthors
+    }
+
+    /// Get the author filter type (include or exclude).
+    ///
+    /// - Returns: True for whitelist (include only), false for blacklist (exclude), nil if disabled
+    var isAuthorWhitelist: Bool? {
+        guard authorFilterEnabled else { return nil }
+        return authorFilterMode == .whitelist
+    }
+
+    // MARK: - Helper Methods for Repository Filtering
+
+    /// Add a repository to the whitelist.
+    func addWhitelistedRepo(_ repo: String) {
+        var repos = whitelistedRepositories
+        repos.insert(repo)
+        whitelistedRepositories = repos
+    }
+
+    /// Remove a repository from the whitelist.
+    func removeWhitelistedRepo(_ repo: String) {
+        var repos = whitelistedRepositories
+        repos.remove(repo)
+        whitelistedRepositories = repos
+    }
+
+    /// Add a repository to the blacklist.
+    func addBlacklistedRepo(_ repo: String) {
+        var repos = blacklistedRepositories
+        repos.insert(repo)
+        blacklistedRepositories = repos
+    }
+
+    /// Remove a repository from the blacklist.
+    func removeBlacklistedRepo(_ repo: String) {
+        var repos = blacklistedRepositories
+        repos.remove(repo)
+        blacklistedRepositories = repos
+    }
+
+    // MARK: - Helper Methods for Author Filtering
+
+    /// Add an author to the whitelist.
+    func addWhitelistedAuthor(_ author: String) {
+        var authors = whitelistedAuthors
+        authors.insert(author)
+        whitelistedAuthors = authors
+    }
+
+    /// Remove an author from the whitelist.
+    func removeWhitelistedAuthor(_ author: String) {
+        var authors = whitelistedAuthors
+        authors.remove(author)
+        whitelistedAuthors = authors
+    }
+
+    /// Add an author to the blacklist.
+    func addBlacklistedAuthor(_ author: String) {
+        var authors = blacklistedAuthors
+        authors.insert(author)
+        blacklistedAuthors = authors
+    }
+
+    /// Remove an author from the blacklist.
+    func removeBlacklistedAuthor(_ author: String) {
+        var authors = blacklistedAuthors
+        authors.remove(author)
+        blacklistedAuthors = authors
     }
 }
 

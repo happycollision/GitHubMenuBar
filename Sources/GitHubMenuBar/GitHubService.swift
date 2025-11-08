@@ -56,15 +56,29 @@ final class GitHubService: Sendable {
     }
 
     /// Helper method to execute a single gh search query
-    private func executeQuery(arguments: [String]) async throws -> [PullRequest] {
+    private func executeQuery(arguments: [String], flagFilters: [String] = [], queryFilters: [String] = []) async throws -> [PullRequest] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
 
         var finalArgs = arguments
+
+        // Add flag-based filters (e.g., --repo, --author) before other flags
+        if !flagFilters.isEmpty {
+            finalArgs.append(contentsOf: flagFilters)
+        }
+
+        // Add JSON fields and limit flags
         finalArgs.append(contentsOf: [
             "--json", "id,title,url,number,repository,author,createdAt,assignees,commentsCount,isDraft,state",
             "--limit", "50"
         ])
+
+        // If we have query filters, append them with "--" separator
+        if !queryFilters.isEmpty {
+            finalArgs.append("--")
+            finalArgs.append(contentsOf: queryFilters)
+        }
+
         process.arguments = finalArgs
 
         let pipe = Pipe()
@@ -130,6 +144,46 @@ final class GitHubService: Sendable {
             return []
         }
 
+        // Build filters from repository and author settings
+        // Whitelists use flag-based filters (--repo, --author)
+        // Blacklists use query syntax filters (after --)
+        var flagFilters: [String] = []
+        var queryFilters: [String] = []
+
+        // Add repository filters
+        if let repoFilter = await AppSettings.shared.activeRepositoryFilter,
+           let isWhitelist = await AppSettings.shared.isRepositoryWhitelist {
+            if isWhitelist {
+                // Whitelist: use multiple --repo flags (OR logic)
+                for repo in repoFilter {
+                    flagFilters.append("--repo")
+                    flagFilters.append(repo)
+                }
+            } else {
+                // Blacklist: use query syntax with -repo: (AND logic)
+                for repo in repoFilter {
+                    queryFilters.append("-repo:\(repo)")
+                }
+            }
+        }
+
+        // Add author filters
+        if let authorFilter = await AppSettings.shared.activeAuthorFilter,
+           let isWhitelist = await AppSettings.shared.isAuthorWhitelist {
+            if isWhitelist {
+                // Whitelist: use multiple --author flags (OR logic)
+                for author in authorFilter {
+                    flagFilters.append("--author")
+                    flagFilters.append(author)
+                }
+            } else {
+                // Blacklist: use query syntax with -author: (AND logic)
+                for author in authorFilter {
+                    queryFilters.append("-author:\(author)")
+                }
+            }
+        }
+
         let hasOpen = included.contains(.open)
         let hasDraft = included.contains(.draft)
         let hasMerged = included.contains(.merged)
@@ -144,7 +198,7 @@ final class GitHubService: Sendable {
             if hasDraft {
                 // Query for all drafts
                 let draftArgs = ["gh", "search", "prs", "--review-requested=@me", "--draft"]
-                let draftPRs = try await executeQuery(arguments: draftArgs)
+                let draftPRs = try await executeQuery(arguments: draftArgs, flagFilters: flagFilters, queryFilters: queryFilters)
                 allPRs.append(contentsOf: draftPRs)
                 print("DEBUG: Fetched \(draftPRs.count) draft PRs")
 
@@ -155,7 +209,7 @@ final class GitHubService: Sendable {
             if hasOpen {
                 // Query for non-draft open PRs
                 let openArgs = ["gh", "search", "prs", "--review-requested=@me", "--state=open", "--draft=false"]
-                let openPRs = try await executeQuery(arguments: openArgs)
+                let openPRs = try await executeQuery(arguments: openArgs, flagFilters: flagFilters, queryFilters: queryFilters)
                 allPRs.append(contentsOf: openPRs)
                 print("DEBUG: Fetched \(openPRs.count) open non-draft PRs")
 
@@ -166,7 +220,7 @@ final class GitHubService: Sendable {
             if hasMerged || hasClosed {
                 // Query for non-draft closed PRs (includes both merged and closed)
                 let closedArgs = ["gh", "search", "prs", "--review-requested=@me", "--state=closed", "--draft=false"]
-                let closedPRs = try await executeQuery(arguments: closedArgs)
+                let closedPRs = try await executeQuery(arguments: closedArgs, flagFilters: flagFilters, queryFilters: queryFilters)
 
                 // Filter to only include merged or closed as requested
                 let filtered = closedPRs.filter { pr in
