@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Internal
+
+## [0.3.0] - 2025-11-08
+
+### Added
 - Profiles system for managing filter configurations
   - Create, rename, delete, and switch between unlimited custom profiles
   - Read-only Default profile with sensible defaults always available
@@ -15,10 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export/import all profiles for sharing and backup with automatic conflict resolution
   - Hybrid profile switching preserves unsaved changes in memory
   - Profiles stored in ~/Library/Application Support/GitHubMenuBar/profiles.json
-
-### Changed
-
-### Fixed
 
 ### Internal
 - Automated release process with CHANGELOG.md integration for consistent, accurate release notes
