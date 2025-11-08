@@ -48,6 +48,22 @@ struct AppKitTextField: NSViewRepresentable {
     }
 }
 
+/// SwiftUI pill badge view that matches the AppKit pill appearance in the menu
+struct PillBadge: View {
+    let text: String
+    let backgroundColor: Color
+    let textColor: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundColor(textColor)
+            .frame(width: 20, height: 16)
+            .background(backgroundColor)
+            .clipShape(Capsule())
+    }
+}
+
 /// AppKit NSTextView wrapper for multiline text editing with proper keyboard focus
 struct AppKitTextView: NSViewRepresentable {
     @Binding var text: String
@@ -139,6 +155,12 @@ struct SettingsView: View {
     @State private var showMerged: Bool
     @State private var showClosed: Bool
 
+    /// Local state for each review decision filter
+    @State private var showApproved: Bool
+    @State private var showChangesRequested: Bool
+    @State private var showReviewRequired: Bool
+    @State private var showNoReview: Bool
+
     /// Refresh interval selection
     @State private var refreshInterval: RefreshInterval
     @State private var customIntervalText: String = ""
@@ -189,6 +211,12 @@ struct SettingsView: View {
         _showDraft = State(initialValue: !AppSettings.shared.isExcluded(.draft))
         _showMerged = State(initialValue: !AppSettings.shared.isExcluded(.merged))
         _showClosed = State(initialValue: !AppSettings.shared.isExcluded(.closed))
+
+        // Initialize review decision filters from AppSettings
+        _showApproved = State(initialValue: !AppSettings.shared.isExcluded(.approved))
+        _showChangesRequested = State(initialValue: !AppSettings.shared.isExcluded(.changesRequested))
+        _showReviewRequired = State(initialValue: !AppSettings.shared.isExcluded(.reviewRequired))
+        _showNoReview = State(initialValue: !AppSettings.shared.isExcluded(.noReview))
 
         // Initialize refresh interval from AppSettings
         let currentInterval = AppSettings.shared.refreshIntervalMinutes
@@ -261,6 +289,58 @@ struct SettingsView: View {
                             .onChange(of: showClosed) { newValue in
                                 updateSetting(status: .closed, shouldShow: newValue)
                             }
+                    }
+
+                    Divider()
+
+                    // Review decision filter section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Filter by Review Status")
+                            .font(.headline)
+
+                        Text("Choose which review statuses to display:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Toggle(isOn: $showApproved) {
+                            HStack(spacing: 6) {
+                                Text("Show Approved PRs")
+                                PillBadge(text: "✓", backgroundColor: Color(red: 0x2d / 255.0, green: 0xa4 / 255.0, blue: 0x4e / 255.0), textColor: .white)
+                            }
+                        }
+                        .onChange(of: showApproved) { newValue in
+                            updateReviewDecisionSetting(decision: .approved, shouldShow: newValue)
+                        }
+
+                        Toggle(isOn: $showChangesRequested) {
+                            HStack(spacing: 6) {
+                                Text("Show PRs with Changes Requested")
+                                PillBadge(text: "⚠", backgroundColor: Color(red: 0xbf / 255.0, green: 0x8b / 255.0, blue: 0x00 / 255.0), textColor: .white)
+                            }
+                        }
+                        .onChange(of: showChangesRequested) { newValue in
+                            updateReviewDecisionSetting(decision: .changesRequested, shouldShow: newValue)
+                        }
+
+                        Toggle(isOn: $showReviewRequired) {
+                            HStack(spacing: 6) {
+                                Text("Show PRs Awaiting Review")
+                                PillBadge(text: "○", backgroundColor: Color.gray, textColor: .white)
+                            }
+                        }
+                        .onChange(of: showReviewRequired) { newValue in
+                            updateReviewDecisionSetting(decision: .reviewRequired, shouldShow: newValue)
+                        }
+
+                        Toggle(isOn: $showNoReview) {
+                            HStack(spacing: 6) {
+                                Text("Show PRs with No Review Required")
+                                PillBadge(text: "∅", backgroundColor: Color.gray, textColor: .white)
+                            }
+                        }
+                        .onChange(of: showNoReview) { newValue in
+                            updateReviewDecisionSetting(decision: .noReview, shouldShow: newValue)
+                        }
                     }
 
                     Divider()
@@ -485,6 +565,18 @@ struct SettingsView: View {
 
         if shouldExclude != AppSettings.shared.isExcluded(status) {
             AppSettings.shared.toggleExclusion(for: status)
+            onSettingsChanged?()
+        }
+    }
+
+    /// Updates review decision filter in AppSettings and triggers refresh
+    private func updateReviewDecisionSetting(decision: ReviewDecision, shouldShow: Bool) {
+        // shouldShow = true means NOT excluded
+        // shouldShow = false means excluded
+        let shouldExclude = !shouldShow
+
+        if shouldExclude != AppSettings.shared.isExcluded(decision) {
+            AppSettings.shared.toggleExclusion(for: decision)
             onSettingsChanged?()
         }
     }

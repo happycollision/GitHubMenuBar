@@ -13,6 +13,37 @@ enum PRStatus: String, CaseIterable {
     }
 }
 
+/// Enum representing the possible review decision states for PRs.
+enum ReviewDecision: String, CaseIterable {
+    case approved = "APPROVED"
+    case changesRequested = "CHANGES_REQUESTED"
+    case reviewRequired = "REVIEW_REQUIRED"
+    case noReview = "NO_REVIEW"
+
+    /// Display name for the review decision
+    var displayName: String {
+        switch self {
+        case .approved:
+            return "Approved"
+        case .changesRequested:
+            return "Changes Requested"
+        case .reviewRequired:
+            return "Review Required"
+        case .noReview:
+            return "No Review"
+        }
+    }
+
+    /// Initialize from the GraphQL API value (which can be null)
+    init?(apiValue: String?) {
+        guard let value = apiValue else {
+            self = .noReview
+            return
+        }
+        self.init(rawValue: value)
+    }
+}
+
 /// Enum representing the filter mode (whitelist or blacklist).
 enum FilterMode: String, Codable {
     case whitelist = "whitelist"
@@ -43,6 +74,7 @@ class AppSettings: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let excludedStatusesKey = "excludedPRStatuses"
+    private let excludedReviewDecisionsKey = "excludedReviewDecisions"
     private let refreshIntervalKey = "refreshIntervalMinutes"
     private let groupByRepoKey = "groupByRepo"
 
@@ -142,6 +174,54 @@ class AppSettings: ObservableObject {
         let allStatuses = Set(PRStatus.allCases)
         return allStatuses.subtracting(excludedStatuses)
     }
+
+    // MARK: - Review Decision Filtering
+
+    /// Get the set of excluded review decisions.
+    ///
+    /// - Returns: Set of ReviewDecision values that should be excluded from display
+    var excludedReviewDecisions: Set<ReviewDecision> {
+        get {
+            let rawValues = defaults.stringArray(forKey: excludedReviewDecisionsKey) ?? []
+            return Set(rawValues.compactMap { ReviewDecision(rawValue: $0) })
+        }
+        set {
+            let rawValues = newValue.map { $0.rawValue }
+            defaults.set(rawValues, forKey: excludedReviewDecisionsKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Check if a specific review decision is excluded.
+    ///
+    /// - Parameter decision: The review decision to check
+    /// - Returns: True if the decision is excluded, false otherwise
+    func isExcluded(_ decision: ReviewDecision) -> Bool {
+        return excludedReviewDecisions.contains(decision)
+    }
+
+    /// Toggle the exclusion state of a specific review decision.
+    ///
+    /// - Parameter decision: The review decision to toggle
+    func toggleExclusion(for decision: ReviewDecision) {
+        var excluded = excludedReviewDecisions
+        if excluded.contains(decision) {
+            excluded.remove(decision)
+        } else {
+            excluded.insert(decision)
+        }
+        excludedReviewDecisions = excluded
+    }
+
+    /// Get the set of included (non-excluded) review decisions.
+    ///
+    /// - Returns: Set of ReviewDecision values that should be included in display
+    var includedReviewDecisions: Set<ReviewDecision> {
+        let allDecisions = Set(ReviewDecision.allCases)
+        return allDecisions.subtracting(excludedReviewDecisions)
+    }
+
+    // MARK: - Refresh Interval
 
     /// Get or set the refresh interval in minutes.
     ///
@@ -420,6 +500,9 @@ struct PullRequest: Codable, Identifiable {
 
     /// The state of the PR (OPEN, CLOSED, MERGED)
     let state: String
+
+    /// The review decision status (APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED, or null)
+    let reviewDecision: String?
 
     /// Repository information from GitHub.
     ///

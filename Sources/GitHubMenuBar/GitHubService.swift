@@ -55,31 +55,46 @@ final class GitHubService: Sendable {
         }
     }
 
-    /// Helper method to execute a single gh search query
-    private func executeQuery(arguments: [String], flagFilters: [String] = [], queryFilters: [String] = []) async throws -> [PullRequest] {
+    /// Helper method to execute a GraphQL query
+    private func executeQuery(searchQuery: String) async throws -> [PullRequest] {
+        let graphqlQuery = """
+        {
+          search(query: "\(searchQuery)", type: ISSUE, first: 50) {
+            edges {
+              node {
+                ... on PullRequest {
+                  id
+                  number
+                  title
+                  url
+                  state
+                  isDraft
+                  reviewDecision
+                  createdAt
+                  repository {
+                    nameWithOwner
+                  }
+                  author {
+                    login
+                  }
+                  assignees(first: 10) {
+                    nodes {
+                      login
+                    }
+                  }
+                  comments {
+                    totalCount
+                  }
+                }
+              }
+            }
+          }
+        }
+        """
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-
-        var finalArgs = arguments
-
-        // Add flag-based filters (e.g., --repo, --author) before other flags
-        if !flagFilters.isEmpty {
-            finalArgs.append(contentsOf: flagFilters)
-        }
-
-        // Add JSON fields and limit flags
-        finalArgs.append(contentsOf: [
-            "--json", "id,title,url,number,repository,author,createdAt,assignees,commentsCount,isDraft,state",
-            "--limit", "50"
-        ])
-
-        // If we have query filters, append them with "--" separator
-        if !queryFilters.isEmpty {
-            finalArgs.append("--")
-            finalArgs.append(contentsOf: queryFilters)
-        }
-
-        process.arguments = finalArgs
+        process.arguments = ["gh", "api", "graphql", "-f", "query=\(graphqlQuery)"]
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -111,9 +126,83 @@ final class GitHubService: Sendable {
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
 
+            // Parse GraphQL response
+            struct GraphQLResponse: Codable {
+                let data: SearchData
+
+                struct SearchData: Codable {
+                    let search: SearchResults
+                }
+
+                struct SearchResults: Codable {
+                    let edges: [Edge]
+                }
+
+                struct Edge: Codable {
+                    let node: Node
+                }
+
+                struct Node: Codable {
+                    let id: String
+                    let number: Int
+                    let title: String
+                    let url: String
+                    let state: String
+                    let isDraft: Bool
+                    let reviewDecision: String?
+                    let createdAt: String
+                    let repository: Repository
+                    let author: Author
+                    let assignees: Assignees
+                    let comments: Comments
+
+                    struct Repository: Codable {
+                        let nameWithOwner: String
+                    }
+
+                    struct Author: Codable {
+                        let login: String
+                    }
+
+                    struct Assignees: Codable {
+                        let nodes: [Assignee]
+                    }
+
+                    struct Assignee: Codable {
+                        let login: String
+                    }
+
+                    struct Comments: Codable {
+                        let totalCount: Int
+                    }
+                }
+            }
+
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return try decoder.decode([PullRequest].self, from: data)
+            let response = try decoder.decode(GraphQLResponse.self, from: data)
+
+            // Convert GraphQL response to PullRequest models
+            let dateFormatter = ISO8601DateFormatter()
+            return response.data.search.edges.compactMap { edge in
+                guard let createdAt = dateFormatter.date(from: edge.node.createdAt) else {
+                    return nil
+                }
+
+                return PullRequest(
+                    id: edge.node.id,
+                    title: edge.node.title,
+                    url: edge.node.url,
+                    number: edge.node.number,
+                    repository: PullRequest.Repository(nameWithOwner: edge.node.repository.nameWithOwner),
+                    author: PullRequest.Author(login: edge.node.author.login),
+                    createdAt: createdAt,
+                    assignees: edge.node.assignees.nodes.map { PullRequest.Assignee(login: $0.login) },
+                    commentsCount: edge.node.comments.totalCount,
+                    isDraft: edge.node.isDraft,
+                    state: edge.node.state,
+                    reviewDecision: edge.node.reviewDecision
+                )
+            }
         } onCancel: {
             // Terminate the process if the task is cancelled
             if process.isRunning {
@@ -124,9 +213,9 @@ final class GitHubService: Sendable {
 
     /// Fetches all pull requests where the current user has been requested as a reviewer.
     ///
-    /// Uses `gh search prs --review-requested=@me` with a multi-query strategy:
-    /// - When draft is included with other statuses, makes separate queries and merges results
-    /// - This avoids the 50-PR limit hiding results when most PRs are in one category
+    /// Uses GraphQL API via `gh api graphql` with a multi-query strategy:
+    /// - Makes separate queries for each status (draft, open, closed) to avoid 50-PR limit issues
+    /// - This ensures we get up to 50 PRs of each type instead of 50 total mixed PRs
     ///
     /// - Returns: Array of `PullRequest` objects, deduplicated by ID
     /// - Throws: `AppError` if gh is not installed, not authenticated, command fails, or JSON parsing fails
@@ -144,25 +233,21 @@ final class GitHubService: Sendable {
             return []
         }
 
-        // Build filters from repository and author settings
-        // Whitelists use flag-based filters (--repo, --author)
-        // Blacklists use query syntax filters (after --)
-        var flagFilters: [String] = []
-        var queryFilters: [String] = []
+        // Build filter strings for GraphQL query
+        var filterParts: [String] = []
 
         // Add repository filters
         if let repoFilter = await AppSettings.shared.activeRepositoryFilter,
            let isWhitelist = await AppSettings.shared.isRepositoryWhitelist {
             if isWhitelist {
-                // Whitelist: use multiple --repo flags (OR logic)
+                // Whitelist: use multiple repo: terms (OR logic)
                 for repo in repoFilter {
-                    flagFilters.append("--repo")
-                    flagFilters.append(repo)
+                    filterParts.append("repo:\(repo)")
                 }
             } else {
-                // Blacklist: use query syntax with -repo: (AND logic)
+                // Blacklist: use negative repo: terms (AND logic)
                 for repo in repoFilter {
-                    queryFilters.append("-repo:\(repo)")
+                    filterParts.append("-repo:\(repo)")
                 }
             }
         }
@@ -171,18 +256,19 @@ final class GitHubService: Sendable {
         if let authorFilter = await AppSettings.shared.activeAuthorFilter,
            let isWhitelist = await AppSettings.shared.isAuthorWhitelist {
             if isWhitelist {
-                // Whitelist: use multiple --author flags (OR logic)
+                // Whitelist: use multiple author: terms (OR logic)
                 for author in authorFilter {
-                    flagFilters.append("--author")
-                    flagFilters.append(author)
+                    filterParts.append("author:\(author)")
                 }
             } else {
-                // Blacklist: use query syntax with -author: (AND logic)
+                // Blacklist: use negative author: terms (AND logic)
                 for author in authorFilter {
-                    queryFilters.append("-author:\(author)")
+                    filterParts.append("-author:\(author)")
                 }
             }
         }
+
+        let baseFilters = filterParts.joined(separator: " ")
 
         let hasOpen = included.contains(.open)
         let hasDraft = included.contains(.draft)
@@ -197,8 +283,8 @@ final class GitHubService: Sendable {
         do {
             if hasDraft {
                 // Query for all drafts
-                let draftArgs = ["gh", "search", "prs", "--review-requested=@me", "--draft"]
-                let draftPRs = try await executeQuery(arguments: draftArgs, flagFilters: flagFilters, queryFilters: queryFilters)
+                let draftQuery = "type:pr review-requested:@me is:draft \(baseFilters)".trimmingCharacters(in: .whitespaces)
+                let draftPRs = try await executeQuery(searchQuery: draftQuery)
                 allPRs.append(contentsOf: draftPRs)
                 print("DEBUG: Fetched \(draftPRs.count) draft PRs")
 
@@ -208,8 +294,8 @@ final class GitHubService: Sendable {
 
             if hasOpen {
                 // Query for non-draft open PRs
-                let openArgs = ["gh", "search", "prs", "--review-requested=@me", "--state=open", "--draft=false"]
-                let openPRs = try await executeQuery(arguments: openArgs, flagFilters: flagFilters, queryFilters: queryFilters)
+                let openQuery = "type:pr review-requested:@me is:open draft:false \(baseFilters)".trimmingCharacters(in: .whitespaces)
+                let openPRs = try await executeQuery(searchQuery: openQuery)
                 allPRs.append(contentsOf: openPRs)
                 print("DEBUG: Fetched \(openPRs.count) open non-draft PRs")
 
@@ -219,13 +305,13 @@ final class GitHubService: Sendable {
 
             if hasMerged || hasClosed {
                 // Query for non-draft closed PRs (includes both merged and closed)
-                let closedArgs = ["gh", "search", "prs", "--review-requested=@me", "--state=closed", "--draft=false"]
-                let closedPRs = try await executeQuery(arguments: closedArgs, flagFilters: flagFilters, queryFilters: queryFilters)
+                let closedQuery = "type:pr review-requested:@me is:closed draft:false \(baseFilters)".trimmingCharacters(in: .whitespaces)
+                let closedPRs = try await executeQuery(searchQuery: closedQuery)
 
                 // Filter to only include merged or closed as requested
                 let filtered = closedPRs.filter { pr in
-                    let state = pr.state.lowercased()
-                    return (state == "merged" && hasMerged) || (state == "closed" && hasClosed)
+                    let state = pr.state.uppercased()
+                    return (state == "MERGED" && hasMerged) || (state == "CLOSED" && hasClosed)
                 }
                 allPRs.append(contentsOf: filtered)
                 print("DEBUG: Fetched \(closedPRs.count) closed PRs, kept \(filtered.count) after filtering")
@@ -244,11 +330,20 @@ final class GitHubService: Sendable {
                 return true
             }
 
+            // Filter by review decision
+            let includedDecisions = await AppSettings.shared.includedReviewDecisions
+            let filteredByReview = deduplicated.filter { pr in
+                guard let decision = ReviewDecision(apiValue: pr.reviewDecision) else {
+                    return true  // Include PRs with unknown review decision
+                }
+                return includedDecisions.contains(decision)
+            }
+
             // Sort by creation date (newest first) to maintain chronological order
             // across all PR states (draft, open, closed, merged)
-            let sorted = deduplicated.sorted { $0.createdAt > $1.createdAt }
+            let sorted = filteredByReview.sorted { $0.createdAt > $1.createdAt }
 
-            print("DEBUG: Total PRs after deduplication and sorting: \(sorted.count)")
+            print("DEBUG: Total PRs after deduplication, review filtering, and sorting: \(sorted.count)")
             return sorted
         } catch is CancellationError {
             // Propagate cancellation error up

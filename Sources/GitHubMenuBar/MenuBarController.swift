@@ -471,6 +471,44 @@ class MenuBarController: NSObject {
         mutableAttachment.addAttribute(.baselineOffset, value: baselineOffset, range: NSRange(location: 0, length: 1))
         attributedTitle.append(mutableAttachment)
 
+        // Add review decision pill if available
+        var reviewDecisionTooltip: String? = nil
+        if let decision = ReviewDecision(apiValue: pr.reviewDecision) {
+            let (reviewText, reviewColor): (String, NSColor)
+            switch decision {
+            case .approved:
+                reviewText = "✓"
+                reviewColor = githubGreen
+                reviewDecisionTooltip = "Review Status: Approved"
+            case .changesRequested:
+                reviewText = "⚠"
+                reviewColor = NSColor(red: 0xbf / 255.0, green: 0x8b / 255.0, blue: 0x00 / 255.0, alpha: 1.0)  // Dark golden
+                reviewDecisionTooltip = "Review Status: Changes Requested"
+            case .reviewRequired:
+                reviewText = "○"
+                reviewColor = .systemGray
+                reviewDecisionTooltip = "Review Status: Review Required"
+            case .noReview:
+                reviewText = "∅"
+                reviewColor = .systemGray
+                reviewDecisionTooltip = "Review Status: No Review Required"
+            }
+
+            if !reviewText.isEmpty {
+                let reviewPillImage = createPillImage(text: reviewText, backgroundColor: reviewColor, textColor: .white)
+                attributedTitle.append(NSAttributedString(string: " "))
+                let reviewAttachment = NSTextAttachment()
+                reviewAttachment.image = reviewPillImage
+
+                let reviewAttachmentString = NSAttributedString(attachment: reviewAttachment)
+                let mutableReviewAttachment = NSMutableAttributedString(attributedString: reviewAttachmentString)
+                let reviewImageHeight = reviewPillImage.size.height
+                let reviewBaselineOffset = (fontMetrics - reviewImageHeight) / 2
+                mutableReviewAttachment.addAttribute(.baselineOffset, value: reviewBaselineOffset, range: NSRange(location: 0, length: 1))
+                attributedTitle.append(mutableReviewAttachment)
+            }
+        }
+
         // Combine both lines
         let fullTitle = attributedTitle.mutableCopy() as! NSMutableAttributedString
         fullTitle.append(NSAttributedString(string: "\n"))
@@ -487,6 +525,11 @@ class MenuBarController: NSObject {
         menuItem.action = #selector(openPR(_:))
         menuItem.target = self
         menuItem.representedObject = pr.url
+
+        // Add tooltip for review decision if available
+        if let tooltip = reviewDecisionTooltip {
+            menuItem.toolTip = tooltip
+        }
 
         return menuItem
     }
