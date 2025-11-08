@@ -523,8 +523,8 @@ class MenuBarController: NSObject {
         }
         let metadataText = metadataParts.joined(separator: " • ")
 
-        // Create container view
-        let containerView = ClickablePRView(frame: NSRect(x: 0, y: 0, width: 500, height: 42))
+        // Create container view with extra height for spacing
+        let containerView = ClickablePRView(frame: NSRect(x: 0, y: 0, width: 500, height: 50))
 
         // Create first line label
         let firstLineLabel = NSTextField(labelWithString: firstLineText)
@@ -534,7 +534,7 @@ class MenuBarController: NSObject {
         firstLineLabel.drawsBackground = false
         firstLineLabel.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         firstLineLabel.textColor = .labelColor
-        firstLineLabel.frame = NSRect(x: 12, y: 22, width: 476, height: 18)
+        firstLineLabel.frame = NSRect(x: 12, y: 26, width: 476, height: 18)
         containerView.addSubview(firstLineLabel)
 
         // Create second line with pills and metadata
@@ -542,14 +542,14 @@ class MenuBarController: NSObject {
 
         // Add status pill
         let statusImageView = NSImageView(image: statusPillImage)
-        statusImageView.frame = NSRect(x: xOffset, y: 4, width: statusPillImage.size.width, height: statusPillImage.size.height)
+        statusImageView.frame = NSRect(x: xOffset, y: 8, width: statusPillImage.size.width, height: statusPillImage.size.height)
         containerView.addSubview(statusImageView)
         xOffset += statusPillImage.size.width + 4
 
         // Add review pill if available
         if let reviewImage = reviewPillImage {
             let reviewImageView = NSImageView(image: reviewImage)
-            reviewImageView.frame = NSRect(x: xOffset, y: 4, width: reviewImage.size.width, height: reviewImage.size.height)
+            reviewImageView.frame = NSRect(x: xOffset, y: 8, width: reviewImage.size.width, height: reviewImage.size.height)
 
             // Add tooltip to the review pill
             if let tooltip = reviewTooltip {
@@ -568,7 +568,7 @@ class MenuBarController: NSObject {
         metadataLabel.drawsBackground = false
         metadataLabel.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
         metadataLabel.textColor = .secondaryLabelColor
-        metadataLabel.frame = NSRect(x: xOffset, y: 2, width: 476 - (xOffset - 12), height: 16)
+        metadataLabel.frame = NSRect(x: xOffset, y: 6, width: 476 - (xOffset - 12), height: 16)
         containerView.addSubview(metadataLabel)
 
         return containerView
