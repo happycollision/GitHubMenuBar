@@ -59,7 +59,7 @@ class SettingsWindowController {
 
             // Use custom KeyWindow class for proper first responder handling
             let window = KeyWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 490, height: 700),
+                contentRect: NSRect(x: 0, y: 0, width: 490, height: 540),
                 styleMask: [.titled, .closable, .resizable],
                 backing: .buffered,
                 defer: false

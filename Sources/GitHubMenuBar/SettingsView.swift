@@ -226,231 +226,253 @@ struct SettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            Text("Filter Pull Requests")
-                .font(.headline)
+        TabView {
+            // MARK: - General Tab
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Header
+                    Text("Filter Pull Requests")
+                        .font(.headline)
 
-            Text("Choose which PR statuses to display in the menu:")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                    Text("Choose which PR statuses to display in the menu:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
 
-            Divider()
+                    Divider()
 
-            // Status checkboxes
-            VStack(alignment: .leading, spacing: 12) {
-                Toggle("Show Open PRs", isOn: $showOpen)
-                    .onChange(of: showOpen) { newValue in
-                        updateSetting(status: .open, shouldShow: newValue)
+                    // Status checkboxes
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle("Show Open PRs", isOn: $showOpen)
+                            .onChange(of: showOpen) { newValue in
+                                updateSetting(status: .open, shouldShow: newValue)
+                            }
+
+                        Toggle("Show Draft PRs", isOn: $showDraft)
+                            .onChange(of: showDraft) { newValue in
+                                updateSetting(status: .draft, shouldShow: newValue)
+                            }
+
+                        Toggle("Show Merged PRs", isOn: $showMerged)
+                            .onChange(of: showMerged) { newValue in
+                                updateSetting(status: .merged, shouldShow: newValue)
+                            }
+
+                        Toggle("Show Closed PRs", isOn: $showClosed)
+                            .onChange(of: showClosed) { newValue in
+                                updateSetting(status: .closed, shouldShow: newValue)
+                            }
                     }
 
-                Toggle("Show Draft PRs", isOn: $showDraft)
-                    .onChange(of: showDraft) { newValue in
-                        updateSetting(status: .draft, shouldShow: newValue)
-                    }
+                    Divider()
 
-                Toggle("Show Merged PRs", isOn: $showMerged)
-                    .onChange(of: showMerged) { newValue in
-                        updateSetting(status: .merged, shouldShow: newValue)
-                    }
+                    // Refresh interval section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Refresh Interval")
+                            .font(.headline)
 
-                Toggle("Show Closed PRs", isOn: $showClosed)
-                    .onChange(of: showClosed) { newValue in
-                        updateSetting(status: .closed, shouldShow: newValue)
-                    }
-            }
-
-            Divider()
-
-            // Refresh interval section
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Refresh Interval")
-                    .font(.headline)
-
-                Text("How often to check for new pull requests:")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Picker("Refresh every:", selection: $refreshInterval) {
-                    ForEach(RefreshInterval.predefined, id: \.self) { interval in
-                        Text(interval.displayName).tag(interval)
-                    }
-                    Text("Custom").tag(RefreshInterval.custom)
-                }
-                .onChange(of: refreshInterval) { newValue in
-                    updateRefreshInterval()
-                }
-
-                // Custom interval text field (only shown when Custom is selected)
-                if case .custom = refreshInterval {
-                    HStack {
-                        AppKitTextField(
-                            text: $customIntervalText,
-                            placeholder: "Minutes (1-60)",
-                            onSubmit: updateRefreshInterval
-                        )
-                        .frame(width: 100)
-
-                        Text("minutes")
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-
-            Divider()
-
-            // Group by repository section
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Display Options")
-                    .font(.headline)
-
-                Toggle("Group by Repository", isOn: $groupByRepo)
-                    .onChange(of: groupByRepo) { newValue in
-                        updateGroupByRepo(newValue: newValue)
-                    }
-
-                Text("When enabled, PRs are organized by repository with headers.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Divider()
-
-            // Repository filtering section
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Repository Filtering")
-                    .font(.headline)
-
-                Toggle("Enable Repository Filtering", isOn: $repoFilterEnabled)
-                    .onChange(of: repoFilterEnabled) { newValue in
-                        AppSettings.shared.repoFilterEnabled = newValue
-                        onSettingsChanged?()
-                    }
-
-                if repoFilterEnabled {
-                    Picker("Mode:", selection: $repoFilterMode) {
-                        Text("Blacklist (Exclude)").tag(FilterMode.blacklist)
-                        Text("Whitelist (Include Only)").tag(FilterMode.whitelist)
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: repoFilterMode) { newValue in
-                        AppSettings.shared.repoFilterMode = newValue
-                        // Reload text field with the new mode's list
-                        let repos = newValue == .blacklist
-                            ? Array(AppSettings.shared.blacklistedRepositories).sorted()
-                            : Array(AppSettings.shared.whitelistedRepositories).sorted()
-                        repoListText = repos.joined(separator: "\n")
-                        repoSaveError = nil
-                        onSettingsChanged?()
-                    }
-
-                    // Show text area based on mode
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(repoFilterMode == .blacklist
-                            ? "Excluded Repositories (one per line):"
-                            : "Included Repositories (one per line, only these will show):")
+                        Text("How often to check for new pull requests:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Text("Format: owner/repo")
+                        Picker("Refresh every:", selection: $refreshInterval) {
+                            ForEach(RefreshInterval.predefined, id: \.self) { interval in
+                                Text(interval.displayName).tag(interval)
+                            }
+                            Text("Custom").tag(RefreshInterval.custom)
+                        }
+                        .onChange(of: refreshInterval) { newValue in
+                            updateRefreshInterval()
+                        }
+
+                        // Custom interval text field (only shown when Custom is selected)
+                        if case .custom = refreshInterval {
+                            HStack {
+                                AppKitTextField(
+                                    text: $customIntervalText,
+                                    placeholder: "Minutes (1-60)",
+                                    onSubmit: updateRefreshInterval
+                                )
+                                .frame(width: 100)
+
+                                Text("minutes")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    // Group by repository section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Display Options")
+                            .font(.headline)
+
+                        Toggle("Group by Repository", isOn: $groupByRepo)
+                            .onChange(of: groupByRepo) { newValue in
+                                updateGroupByRepo(newValue: newValue)
+                            }
+
+                        Text("When enabled, PRs are organized by repository with headers.")
                             .font(.caption)
                             .foregroundColor(.secondary)
-
-                        TextEditor(text: $repoListText)
-                            .font(.system(.body, design: .monospaced))
-                            .frame(height: 120)
-                            .border(Color.gray.opacity(0.3), width: 1)
-
-                        if let error = repoSaveError {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-
-                        Button("Save") {
-                            saveRepositories()
-                        }
                     }
-                }
 
-                Text("Filter PRs by repository at the command level.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    Divider()
+
+                    // Info text
+                    Text("Changes take effect immediately and will be remembered.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(20)
+            }
+            .tabItem {
+                Label("General", systemImage: "gear")
             }
 
-            Divider()
+            // MARK: - Advanced Tab
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Repository filtering section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Repository Filtering")
+                            .font(.headline)
 
-            // Author filtering section
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Author Filtering")
-                    .font(.headline)
+                        Toggle("Enable Repository Filtering", isOn: $repoFilterEnabled)
+                            .onChange(of: repoFilterEnabled) { newValue in
+                                AppSettings.shared.repoFilterEnabled = newValue
+                                onSettingsChanged?()
+                            }
 
-                Toggle("Enable Author Filtering", isOn: $authorFilterEnabled)
-                    .onChange(of: authorFilterEnabled) { newValue in
-                        AppSettings.shared.authorFilterEnabled = newValue
-                        onSettingsChanged?()
-                    }
+                        if repoFilterEnabled {
+                            Picker("Mode:", selection: $repoFilterMode) {
+                                Text("Blacklist (Exclude)").tag(FilterMode.blacklist)
+                                Text("Whitelist (Include Only)").tag(FilterMode.whitelist)
+                            }
+                            .pickerStyle(.segmented)
+                            .onChange(of: repoFilterMode) { newValue in
+                                AppSettings.shared.repoFilterMode = newValue
+                                // Reload text field with the new mode's list
+                                let repos = newValue == .blacklist
+                                    ? Array(AppSettings.shared.blacklistedRepositories).sorted()
+                                    : Array(AppSettings.shared.whitelistedRepositories).sorted()
+                                repoListText = repos.joined(separator: "\n")
+                                repoSaveError = nil
+                                onSettingsChanged?()
+                            }
 
-                if authorFilterEnabled {
-                    Picker("Mode:", selection: $authorFilterMode) {
-                        Text("Blacklist (Exclude)").tag(FilterMode.blacklist)
-                        Text("Whitelist (Include Only)").tag(FilterMode.whitelist)
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: authorFilterMode) { newValue in
-                        AppSettings.shared.authorFilterMode = newValue
-                        // Reload text field with the new mode's list
-                        let authors = newValue == .blacklist
-                            ? Array(AppSettings.shared.blacklistedAuthors).sorted()
-                            : Array(AppSettings.shared.whitelistedAuthors).sorted()
-                        authorListText = authors.joined(separator: "\n")
-                        authorSaveError = nil
-                        onSettingsChanged?()
-                    }
+                            // Show text area based on mode
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(repoFilterMode == .blacklist
+                                    ? "Excluded Repositories (one per line):"
+                                    : "Included Repositories (one per line, only these will show):")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
 
-                    // Show text area based on mode
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(authorFilterMode == .blacklist
-                            ? "Excluded Authors (one per line):"
-                            : "Included Authors (one per line, only PRs by these authors will show):")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                                Text("Format: owner/repo")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
 
-                        Text("Format: username (without @)")
+                                TextEditor(text: $repoListText)
+                                    .font(.system(.body, design: .monospaced))
+                                    .frame(height: 120)
+                                    .border(Color.gray.opacity(0.3), width: 1)
+
+                                if let error = repoSaveError {
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                }
+
+                                Button("Save") {
+                                    saveRepositories()
+                                }
+                            }
+                        }
+
+                        Text("Filter PRs by repository at the command level.")
                             .font(.caption)
                             .foregroundColor(.secondary)
-
-                        TextEditor(text: $authorListText)
-                            .font(.system(.body, design: .monospaced))
-                            .frame(height: 120)
-                            .border(Color.gray.opacity(0.3), width: 1)
-
-                        if let error = authorSaveError {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-
-                        Button("Save") {
-                            saveAuthors()
-                        }
                     }
+
+                    Divider()
+
+                    // Author filtering section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Author Filtering")
+                            .font(.headline)
+
+                        Toggle("Enable Author Filtering", isOn: $authorFilterEnabled)
+                            .onChange(of: authorFilterEnabled) { newValue in
+                                AppSettings.shared.authorFilterEnabled = newValue
+                                onSettingsChanged?()
+                            }
+
+                        if authorFilterEnabled {
+                            Picker("Mode:", selection: $authorFilterMode) {
+                                Text("Blacklist (Exclude)").tag(FilterMode.blacklist)
+                                Text("Whitelist (Include Only)").tag(FilterMode.whitelist)
+                            }
+                            .pickerStyle(.segmented)
+                            .onChange(of: authorFilterMode) { newValue in
+                                AppSettings.shared.authorFilterMode = newValue
+                                // Reload text field with the new mode's list
+                                let authors = newValue == .blacklist
+                                    ? Array(AppSettings.shared.blacklistedAuthors).sorted()
+                                    : Array(AppSettings.shared.whitelistedAuthors).sorted()
+                                authorListText = authors.joined(separator: "\n")
+                                authorSaveError = nil
+                                onSettingsChanged?()
+                            }
+
+                            // Show text area based on mode
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(authorFilterMode == .blacklist
+                                    ? "Excluded Authors (one per line):"
+                                    : "Included Authors (one per line, only PRs by these authors will show):")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+
+                                Text("Format: username (without @)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                TextEditor(text: $authorListText)
+                                    .font(.system(.body, design: .monospaced))
+                                    .frame(height: 120)
+                                    .border(Color.gray.opacity(0.3), width: 1)
+
+                                if let error = authorSaveError {
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                }
+
+                                Button("Save") {
+                                    saveAuthors()
+                                }
+                            }
+                        }
+
+                        Text("Filter PRs by author at the command level.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Divider()
+
+                    // Info text
+                    Text("Changes take effect immediately and will be remembered.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-
-                Text("Filter PRs by author at the command level.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                .padding(20)
             }
-
-            Divider()
-
-            // Info text
-            Text("Changes take effect immediately and will be remembered.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            .tabItem {
+                Label("Advanced", systemImage: "slider.horizontal.3")
+            }
         }
-        .padding(20)
-        .frame(width: 450)
+        .frame(width: 450, height: 500)
     }
 
     // MARK: - Helper Methods
