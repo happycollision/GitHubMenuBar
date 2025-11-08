@@ -53,19 +53,58 @@ GitHubMenuBar is a native macOS menu bar application that monitors GitHub pull r
 - Async/await for clean, modern async code
 - Sendable conformance for thread-safe service layer
 
+### 5. Profiles System Architecture
+
+**Decision**: Use hardcoded Default profile + JSON storage for user profiles with hybrid switching.
+
+**Rationale**:
+- **Hardcoded Default Profile**:
+  - Ensures consistent baseline experience across installations
+  - No migration needed for existing users
+  - Read-only prevents accidental modification
+  - Always available even if JSON is corrupted
+- **JSON Storage for User Profiles**:
+  - Human-readable format, easy to share/backup
+  - Single file (profiles.json) for all user profiles
+  - Atomic writes prevent corruption
+  - Default excluded from JSON (stays hardcoded)
+- **Hybrid Switching with In-Memory Changes**:
+  - Preserves unsaved changes when switching profiles
+  - No confirmation dialogs for seamless workflow
+  - Changes stored in memory dictionary (pendingChanges)
+  - Allows "exploring" other profiles without losing work
+- **Silent Mode for applySnapshot**:
+  - Prevents spurious change notifications during profile loading
+  - Required for accurate unsaved changes detection
+  - Used during switches to avoid triggering change handlers
+
+**Implementation**: See `ProfileManager.swift`, `Profile.swift`
+
+**Trade-offs**:
+- More complex than simple settings file
+- Requires careful state management for change tracking
+- Benefits: Better UX, team collaboration, backup/restore
+
 ## Project Structure
 
 ```
 GitHubMenuBar/
 ├── Sources/GitHubMenuBar/
-│   ├── GitHubMenuBar.swift      # App entry point and AppDelegate
-│   ├── Models.swift              # Data models (PullRequest, AppError)
-│   ├── GitHubService.swift       # GitHub CLI integration layer
-│   └── MenuBarController.swift   # Menu bar UI and logic
-├── Package.swift                 # Swift Package Manager configuration
-├── Info.plist                    # macOS app configuration (LSUIElement)
-├── README.md                     # User-facing documentation
-└── ARCHITECTURE.md               # This file - technical documentation
+│   ├── GitHubMenuBar.swift           # App entry point and AppDelegate
+│   ├── Models.swift                  # Data models (PullRequest, AppSettings, AppError)
+│   ├── Profile.swift                 # Profile data models and export/import types
+│   ├── ProfileManager.swift          # Profile management singleton
+│   ├── GitHubService.swift           # GitHub CLI integration layer
+│   ├── MenuBarController.swift       # Menu bar UI and logic
+│   ├── SettingsView.swift            # Settings window with tabs
+│   ├── SettingsWindowController.swift # NSWindowController for settings
+│   ├── ProfileManagementBar.swift    # Profile management UI component
+│   └── ProfilesView.swift            # Advanced profile management tab
+├── Package.swift                     # Swift Package Manager configuration
+├── Info.plist                        # macOS app configuration (LSUIElement)
+├── README.md                         # User-facing documentation
+├── CHANGELOG.md                      # Version history and release notes
+└── ARCHITECTURE.md                   # This file - technical documentation
 ```
 
 ## Component Breakdown
@@ -80,16 +119,122 @@ GitHubMenuBar/
 - **Responsibility**: Data structures and settings
 - **Key types**:
   - `PRStatus`: Enum representing filterable PR statuses (Open, Draft, Merged, Closed)
+  - `ReviewDecision`: Enum for review approval states (Approved, ChangesRequested, ReviewRequired, NoReview)
   - `AppSettings`: Singleton managing user preferences via UserDefaults
-    - Stores excluded PR statuses with default [MERGED, CLOSED]
+    - Stores 12 filter settings (status, review decisions, refresh interval, grouping, repo/author filters)
     - Provides included/excluded status sets for filtering
-    - Posts notifications when settings change
+    - Posts notifications when settings change via `didChangeNotification`
     - Thread-safe with @MainActor
+    - **Profile Integration**:
+      - `createSnapshot()`: Exports current settings to ProfileSettings
+      - `applySnapshot(_:silent:)`: Imports settings from ProfileSettings with optional silent mode
   - `PullRequest`: Codable model matching gh CLI JSON output
     - Core fields: id, title, url, number, repository, author, createdAt
-    - Metadata fields: assignees, commentsCount, isDraft, state
+    - Metadata fields: assignees, commentsCount, isDraft, state, reviewDecision
     - Helper method: `formattedAge()` - formats PR age as human-readable string
   - `AppError`: App-specific error types with user-friendly messages
+
+### Profile.swift
+- **Responsibility**: Profile data models and export/import types
+- **Key types**:
+  - `ProfilesContainer`: Top-level JSON structure with version, activeProfile, and profiles dictionary
+  - `Profile`: Individual profile with name, isDefault flag, timestamps, and settings
+  - `ProfileSettings`: Codable struct containing all 12 filter settings
+    - Custom equality comparison ignoring array ordering (compares as sets)
+  - `ExportableProfiles`: Wrapper for exporting multiple profiles with metadata
+  - `ImportResult`: Result type tracking imported/skipped/error profiles
+  - `ConflictResolution`: Enum for import conflict strategies (skip/rename/overwrite)
+  - `ProfileError`: Errors for profile operations with user-friendly descriptions
+
+### ProfileManager.swift
+- **Responsibility**: Centralized profile management and persistence
+- **Key features**:
+  - Singleton pattern with @MainActor isolation
+  - ObservableObject with @Published properties for SwiftUI reactivity
+  - Manages hardcoded Default profile (never stored in JSON)
+  - Loads/saves user profiles from ~/Library/Application Support/GitHubMenuBar/profiles.json
+  - Atomic writes to prevent corruption
+  - Hybrid profile switching with in-memory change preservation
+  - Export/import functionality with automatic conflict resolution
+- **Published State**:
+  - `activeProfileName`: Currently active profile name
+  - `hasUnsavedChanges`: Whether current settings differ from saved profile
+  - `availableProfiles`: All profile names (Default + user profiles)
+- **Core Methods**:
+  - `loadProfiles()`: Load from JSON, create empty if missing
+  - `saveProfiles()`: Write to JSON with atomic writes
+  - `getProfile(name:)`: Retrieve profile (checks Default first, then user profiles)
+  - `saveProfile(name:settings:)`: Create/update user profile (prevents Default modification)
+  - `deleteProfile(name:)`: Remove profile (prevents Default deletion)
+  - `renameProfile(oldName:newName:)`: Rename profile (prevents Default rename)
+  - `switchToProfile(name:currentSettings:)`: Switch with change preservation
+  - `createProfileFromCurrentSettings(name:settings:)`: Save current state as new profile
+  - `hasUnsavedChanges(currentSettings:)`: Compare against active profile
+  - `revertToSaved()`: Discard changes and reload profile
+  - `updateActiveProfile(settings:)`: Save changes to active profile
+  - `exportAllProfiles(to:)`: Export all user profiles to JSON file
+  - `importProfiles(from:conflictHandler:)`: Import with conflict resolution
+
+### SettingsView.swift
+- **Responsibility**: Main settings window with tabbed interface
+- **Key features**:
+  - SwiftUI view with TabView for organized settings
+  - Three tabs: General (status/review filters), Advanced (repo/author filters), Profiles (management)
+  - ProfileManagementBar component above tabs for quick profile operations
+  - Observes AppSettings.didChangeNotification to reload on profile switches
+  - Two-way binding with AppSettings for all filter controls
+  - `onSettingsChanged` callback to trigger PR list refresh
+- **State Management**:
+  - Local @State for all UI controls (toggles, pickers, text fields)
+  - `reloadSettingsFromAppSettings()`: Syncs UI state from AppSettings after profile switch
+  - Updates AppSettings immediately when user changes any control
+
+### SettingsWindowController.swift
+- **Responsibility**: NSWindowController wrapper for SwiftUI settings
+- **Key features**:
+  - Singleton pattern for single settings window instance
+  - Creates NSWindow with SwiftUI hosting view
+  - Manages window lifecycle (show, close, focus)
+  - Prevents multiple windows from opening
+
+### ProfileManagementBar.swift
+- **Responsibility**: Profile management controls in settings window
+- **Key features**:
+  - SwiftUI component displaying above settings tabs
+  - Profile dropdown with unsaved changes indicator (asterisk)
+  - Three action buttons: Update Profile, Save New, Revert
+  - Observes ProfileManager for reactivity
+  - Local state for unsaved changes tracking
+  - Dialog sheets for creating new profiles with validation
+- **Button States**:
+  - Update Profile: Disabled when no changes or on Default profile
+  - Save New: Disabled when no changes, opens name input dialog
+  - Revert: Disabled when no changes
+- **Actions**:
+  - Profile switching triggers ProfileManager.switchToProfile()
+  - Update saves to active profile via updateActiveProfile()
+  - Save New creates new profile and switches to it
+  - Revert calls ProfileManager.revertToSaved()
+  - All actions invoke onSettingsChanged callback to refresh PRs
+
+### ProfilesView.swift
+- **Responsibility**: Advanced profile management in Profiles tab
+- **Key features**:
+  - SwiftUI view listing all available profiles
+  - Visual indicators for Default profile and active profile
+  - Per-profile action buttons (Export, Rename, Delete)
+  - Import/Export buttons at top for bulk operations
+  - Dialog sheets for rename operations with validation
+  - Alert dialogs for delete confirmation and import results
+- **Export/Import**:
+  - Export All button: Opens NSSavePanel, calls exportAllProfiles()
+  - Import button: Opens NSOpenPanel, calls importProfiles() with auto-rename conflict handler
+  - Export button per profile: Opens NSSavePanel, calls exportProfile()
+  - Import result displayed in alert with imported/skipped/error counts
+- **Validation**:
+  - Prevents empty profile names
+  - Prevents "Default" name (case-insensitive)
+  - Shows error messages for validation failures
 
 ### GitHubService.swift
 - **Responsibility**: GitHub data fetching with status filtering
@@ -134,14 +279,26 @@ GitHubMenuBar/
 
 ## Data Flow
 
+### App Launch with Profiles
+
 ```
+AppDelegate.applicationDidFinishLaunching()
+  ↓
+ProfileManager.shared.loadProfiles()
+  ↓
+Load profiles.json OR create empty container
+  ↓
+Get active profile (Default or user profile)
+  ↓
+AppSettings.shared.applySnapshot(activeProfile.settings)
+  ↓
 MenuBarController.init()
   ↓
 setupMenuBar() → Creates NSStatusItem with icon
   ↓
-setupRefreshTimer() → Starts 5-minute refresh timer
+setupRefreshTimer() → Starts timer based on profile's refresh interval
   ↓
-refresh() → Fetches data
+refresh() → Fetches data with profile's filter settings
   ↓
 GitHubService.fetchReviewRequests()
   ↓
@@ -152,6 +309,52 @@ Parse JSON → [PullRequest]
 updateMenu() → Rebuild NSMenu with PRs
   ↓
 updateBadge() → Update count badge on icon
+```
+
+### Profile Switching Flow
+
+```
+User selects different profile from dropdown
+  ↓
+ProfileManagementBar.switchProfile(to: newName)
+  ↓
+ProfileManager.switchToProfile(name: newName, currentSettings: snapshot)
+  ↓
+IF current profile has unsaved changes
+  → Store in pendingChanges[oldProfileName]
+  ↓
+Load new profile settings
+  ↓
+IF new profile has pending changes
+  → Restore from pendingChanges[newProfileName]
+  ELSE
+  → Use saved profile settings
+  ↓
+AppSettings.shared.applySnapshot(settings, silent: true)
+  ↓
+Post AppSettings.didChangeNotification
+  ↓
+SettingsView.reloadSettingsFromAppSettings() → Updates UI
+  ↓
+MenuBarController.refresh() → Fetches PRs with new filters
+```
+
+### Save Profile Flow
+
+```
+User clicks "Update Profile" button
+  ↓
+ProfileManagementBar calls ProfileManager.updateActiveProfile()
+  ↓
+Validate: not Default profile
+  ↓
+Update profile.modifiedAt timestamp
+  ↓
+Write to profiles.json (atomic)
+  ↓
+Clear pendingChanges[profileName]
+  ↓
+Update @Published properties (hasUnsavedChanges → false)
 ```
 
 ## Menu Structure
@@ -215,18 +418,20 @@ Each PR displays:
 
 ## Future Enhancement Ideas
 
-1. **Configurable refresh interval**: Allow users to set refresh time
-2. **Additional filters**: By repo, age, author, etc. (status filtering now implemented)
-3. **Desktop notifications**: Alert when new review requests appear
-4. **Detailed review info**: Use hybrid approach with `gh pr view` for full review details
+1. ✅ ~~**Configurable refresh interval**: Allow users to set refresh time~~ (Implemented in profiles)
+2. ✅ ~~**Additional filters**: By repo, age, author, etc.~~ (Status, review decision, repo, and author filters implemented)
+3. ✅ ~~**Saved filter presets**: Allow users to save and switch between filter combinations~~ (Implemented as profiles system)
+4. **Individual profile export**: Export single profiles in addition to bulk export
+5. **Interactive conflict resolution**: UI for choosing skip/rename/overwrite per conflict during import
+6. **Desktop notifications**: Alert when new review requests appear
+7. **Detailed review info**: Use hybrid approach with `gh pr view` for full review details
    - Show number of requested reviewers
    - Show approval/changes requested count
    - Show CI/CD status
    - Available on-demand (e.g., Option+click or submenu)
-5. **Sort options**: Sort by age, repo, priority, etc.
-6. **Multiple GitHub accounts**: Support for switching accounts
-7. **Custom gh command**: Allow users to customize the search query
-8. **Saved filter presets**: Allow users to save and switch between filter combinations
+8. **Sort options**: Sort by age, repo, priority, etc.
+9. **Multiple GitHub accounts**: Support for switching accounts
+10. **Custom gh command**: Allow users to customize the search query
 
 ## Testing the App
 

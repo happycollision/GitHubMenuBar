@@ -92,43 +92,8 @@ class AppSettings: ObservableObject {
     static let didChangeNotification = Notification.Name("AppSettingsDidChange")
 
     private init() {
-        // Initialize defaults if not set
-        if defaults.array(forKey: excludedStatusesKey) == nil {
-            // Default to excluding MERGED and CLOSED
-            defaults.set([PRStatus.merged.rawValue, PRStatus.closed.rawValue], forKey: excludedStatusesKey)
-        }
-
-        // Initialize refresh interval if not set (default to 5 minutes)
-        if defaults.object(forKey: refreshIntervalKey) == nil {
-            defaults.set(5, forKey: refreshIntervalKey)
-        }
-
-        // Initialize group by repo if not set (default to true)
-        if defaults.object(forKey: groupByRepoKey) == nil {
-            defaults.set(true, forKey: groupByRepoKey)
-        }
-
-        // Initialize filter settings if not set
-        if defaults.object(forKey: repoFilterEnabledKey) == nil {
-            defaults.set(false, forKey: repoFilterEnabledKey)
-        }
-
-        if defaults.object(forKey: repoFilterModeKey) == nil {
-            defaults.set(FilterMode.blacklist.rawValue, forKey: repoFilterModeKey)
-        }
-
-        if defaults.object(forKey: authorFilterEnabledKey) == nil {
-            defaults.set(true, forKey: authorFilterEnabledKey)
-        }
-
-        if defaults.object(forKey: authorFilterModeKey) == nil {
-            defaults.set(FilterMode.blacklist.rawValue, forKey: authorFilterModeKey)
-        }
-
-        // Initialize blacklisted authors with dependabot by default
-        if defaults.array(forKey: blacklistedAuthorsKey) == nil {
-            defaults.set(["dependabot", "dependabot[bot]"], forKey: blacklistedAuthorsKey)
-        }
+        // Settings are now loaded from ProfileManager on app launch
+        // UserDefaults initialization has been removed in favor of profile system
     }
 
     /// Get the set of excluded PR statuses.
@@ -455,6 +420,48 @@ class AppSettings: ObservableObject {
         var authors = blacklistedAuthors
         authors.remove(author)
         blacklistedAuthors = authors
+    }
+
+    // MARK: - Profile Integration
+
+    /// Create a snapshot of current settings for profile storage
+    func createSnapshot() -> ProfileSettings {
+        return ProfileSettings(
+            excludedStatuses: Array(excludedStatuses.map { $0.rawValue }).sorted(),
+            excludedReviewDecisions: Array(excludedReviewDecisions.map { $0.rawValue }).sorted(),
+            refreshIntervalMinutes: refreshIntervalMinutes,
+            groupByRepo: groupByRepo,
+            repoFilterEnabled: repoFilterEnabled,
+            repoFilterMode: repoFilterMode.rawValue,
+            whitelistedRepositories: Array(whitelistedRepositories).sorted(),
+            blacklistedRepositories: Array(blacklistedRepositories).sorted(),
+            authorFilterEnabled: authorFilterEnabled,
+            authorFilterMode: authorFilterMode.rawValue,
+            whitelistedAuthors: Array(whitelistedAuthors).sorted(),
+            blacklistedAuthors: Array(blacklistedAuthors).sorted()
+        )
+    }
+
+    /// Apply a profile snapshot to current settings
+    func applySnapshot(_ settings: ProfileSettings, silent: Bool = false) {
+        // Update all settings - write directly to UserDefaults
+        defaults.set(settings.excludedStatuses, forKey: excludedStatusesKey)
+        defaults.set(settings.excludedReviewDecisions, forKey: excludedReviewDecisionsKey)
+        defaults.set(settings.refreshIntervalMinutes, forKey: refreshIntervalKey)
+        defaults.set(settings.groupByRepo, forKey: groupByRepoKey)
+        defaults.set(settings.repoFilterEnabled, forKey: repoFilterEnabledKey)
+        defaults.set(settings.repoFilterMode, forKey: repoFilterModeKey)
+        defaults.set(settings.whitelistedRepositories, forKey: whitelistedRepositoriesKey)
+        defaults.set(settings.blacklistedRepositories, forKey: blacklistedRepositoriesKey)
+        defaults.set(settings.authorFilterEnabled, forKey: authorFilterEnabledKey)
+        defaults.set(settings.authorFilterMode, forKey: authorFilterModeKey)
+        defaults.set(settings.whitelistedAuthors, forKey: whitelistedAuthorsKey)
+        defaults.set(settings.blacklistedAuthors, forKey: blacklistedAuthorsKey)
+
+        // Post single notification after all updates (only if not silent)
+        if !silent {
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
     }
 }
 

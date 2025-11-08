@@ -69,12 +69,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var menuBarController: MenuBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Initialize the menu bar controller, which sets up the status item
-        // and begins fetching PR data
-        menuBarController = MenuBarController()
+        // Initialize ProfileManager and load active profile settings
+        Task { @MainActor in
+            let profileManager = ProfileManager.shared
+            profileManager.loadProfiles()
 
-        // Setup Edit menu for keyboard shortcuts (required for LSUIElement apps)
-        setupEditMenu()
+            // Load active profile into AppSettings
+            if let activeProfile = profileManager.getProfile(name: profileManager.activeProfileName) {
+                AppSettings.shared.applySnapshot(activeProfile.settings)
+                print("[AppDelegate] Loaded active profile: \(profileManager.activeProfileName)")
+            }
+
+            // Initialize the menu bar controller, which sets up the status item
+            // and begins fetching PR data
+            menuBarController = MenuBarController()
+
+            // Setup Edit menu for keyboard shortcuts (required for LSUIElement apps)
+            setupEditMenu()
+        }
     }
 
     /// Creates an Edit menu to enable keyboard shortcuts in menu bar apps.

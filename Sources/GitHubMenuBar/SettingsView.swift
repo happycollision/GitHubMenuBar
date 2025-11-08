@@ -256,7 +256,12 @@ struct SettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        TabView {
+        VStack(spacing: 0) {
+            // Profile Management Bar (above tabs)
+            ProfileManagementBar(onSettingsChanged: onSettingsChanged)
+
+            // Existing TabView
+            TabView {
             // MARK: - General Tab
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -573,11 +578,69 @@ struct SettingsView: View {
             .tabItem {
                 Label("Advanced", systemImage: "slider.horizontal.3")
             }
+
+            // MARK: - Profiles Tab
+            ProfilesView(onSettingsChanged: onSettingsChanged)
+            .tabItem {
+                Label("Profiles", systemImage: "person.2")
+            }
+            }
         }
-        .frame(width: 450, height: 500)
+        .frame(width: 450, height: 550)
+        .onReceive(NotificationCenter.default.publisher(for: AppSettings.didChangeNotification)) { _ in
+            // Reload state from AppSettings when profile is switched/reverted
+            reloadSettingsFromAppSettings()
+        }
     }
 
     // MARK: - Helper Methods
+
+    /// Reload all state variables from AppSettings (called when profile switches)
+    private func reloadSettingsFromAppSettings() {
+        // Reload status filters
+        showOpen = !AppSettings.shared.isExcluded(.open)
+        showDraft = !AppSettings.shared.isExcluded(.draft)
+        showMerged = !AppSettings.shared.isExcluded(.merged)
+        showClosed = !AppSettings.shared.isExcluded(.closed)
+
+        // Reload review decision filters
+        showApproved = !AppSettings.shared.isExcluded(.approved)
+        showChangesRequested = !AppSettings.shared.isExcluded(.changesRequested)
+        showReviewRequired = !AppSettings.shared.isExcluded(.reviewRequired)
+        showNoReview = !AppSettings.shared.isExcluded(.noReview)
+
+        // Reload refresh interval
+        let currentInterval = AppSettings.shared.refreshIntervalMinutes
+        if let predefined = RefreshInterval.predefined.first(where: {
+            if case .minutes(let m) = $0 { return m == currentInterval }
+            return false
+        }) {
+            refreshInterval = predefined
+        } else {
+            refreshInterval = .custom
+            customIntervalText = String(currentInterval)
+        }
+
+        // Reload group by repo
+        groupByRepo = AppSettings.shared.groupByRepo
+
+        // Reload filter settings
+        repoFilterEnabled = AppSettings.shared.repoFilterEnabled
+        repoFilterMode = AppSettings.shared.repoFilterMode
+        authorFilterEnabled = AppSettings.shared.authorFilterEnabled
+        authorFilterMode = AppSettings.shared.authorFilterMode
+
+        // Reload filter lists
+        let currentRepos = AppSettings.shared.repoFilterMode == .blacklist
+            ? Array(AppSettings.shared.blacklistedRepositories).sorted()
+            : Array(AppSettings.shared.whitelistedRepositories).sorted()
+        repoListText = currentRepos.joined(separator: "\n")
+
+        let currentAuthors = AppSettings.shared.authorFilterMode == .blacklist
+            ? Array(AppSettings.shared.blacklistedAuthors).sorted()
+            : Array(AppSettings.shared.whitelistedAuthors).sorted()
+        authorListText = currentAuthors.joined(separator: "\n")
+    }
 
     /// Updates AppSettings and triggers refresh
     private func updateSetting(status: PRStatus, shouldShow: Bool) {

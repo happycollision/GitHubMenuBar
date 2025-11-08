@@ -230,11 +230,6 @@ class MenuBarController: NSObject {
         refreshButton.frame.size.width = buttonWidth
 
         // Set container width to match typical PR item width in the menu
-        // PR items are typically 450-550px wide, so we use a fixed width that matches
-        // This ensures the button aligns to the right edge of the entire menu
-        // TODO: Improve button alignment - currently uses fixed width which doesn't perfectly
-        // match the dynamic menu width. Consider calculating actual menu width or using
-        // NSMenu's intrinsic width to ensure perfect right alignment.
         let containerWidth: CGFloat = 500
         let containerHeight: CGFloat = 32
         let leftPadding: CGFloat = 12
@@ -244,7 +239,7 @@ class MenuBarController: NSObject {
         // Position title on the left
         titleLabel.frame.origin = NSPoint(x: leftPadding, y: (containerHeight - titleLabel.frame.height) / 2)
 
-        // Position button on the right (truly aligned to the right)
+        // Position button on the right
         refreshButton.frame.origin = NSPoint(
             x: containerWidth - buttonWidth - rightPadding,
             y: (containerHeight - refreshButton.frame.height) / 2
@@ -256,6 +251,8 @@ class MenuBarController: NSObject {
         let headerItem = NSMenuItem()
         headerItem.view = containerView
         menu.addItem(headerItem)
+
+        menu.addItem(NSMenuItem.separator())
 
         // Settings menu item
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
