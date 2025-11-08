@@ -58,7 +58,9 @@ struct PillBadge: View {
         Text(text)
             .font(.system(size: 11, weight: .medium))
             .foregroundColor(textColor)
-            .frame(width: 20, height: 16)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .frame(height: 16)
             .background(backgroundColor)
             .clipShape(Capsule())
     }
@@ -270,25 +272,45 @@ struct SettingsView: View {
 
                     // Status checkboxes
                     VStack(alignment: .leading, spacing: 12) {
-                        Toggle("Show Open PRs", isOn: $showOpen)
-                            .onChange(of: showOpen) { newValue in
-                                updateSetting(status: .open, shouldShow: newValue)
+                        Toggle(isOn: $showOpen) {
+                            HStack(spacing: 6) {
+                                Text("Show Open PRs")
+                                PillBadge(text: "OPEN", backgroundColor: Color(red: 0x2d / 255.0, green: 0xa4 / 255.0, blue: 0x4e / 255.0), textColor: .white)
                             }
+                        }
+                        .onChange(of: showOpen) { newValue in
+                            updateSetting(status: .open, shouldShow: newValue)
+                        }
 
-                        Toggle("Show Draft PRs", isOn: $showDraft)
-                            .onChange(of: showDraft) { newValue in
-                                updateSetting(status: .draft, shouldShow: newValue)
+                        Toggle(isOn: $showDraft) {
+                            HStack(spacing: 6) {
+                                Text("Show Draft PRs")
+                                PillBadge(text: "DRAFT", backgroundColor: Color.gray, textColor: .white)
                             }
+                        }
+                        .onChange(of: showDraft) { newValue in
+                            updateSetting(status: .draft, shouldShow: newValue)
+                        }
 
-                        Toggle("Show Merged PRs", isOn: $showMerged)
-                            .onChange(of: showMerged) { newValue in
-                                updateSetting(status: .merged, shouldShow: newValue)
+                        Toggle(isOn: $showMerged) {
+                            HStack(spacing: 6) {
+                                Text("Show Merged PRs")
+                                PillBadge(text: "MERGED", backgroundColor: Color(red: 0x82 / 255.0, green: 0x50 / 255.0, blue: 0xdf / 255.0), textColor: .white)
                             }
+                        }
+                        .onChange(of: showMerged) { newValue in
+                            updateSetting(status: .merged, shouldShow: newValue)
+                        }
 
-                        Toggle("Show Closed PRs", isOn: $showClosed)
-                            .onChange(of: showClosed) { newValue in
-                                updateSetting(status: .closed, shouldShow: newValue)
+                        Toggle(isOn: $showClosed) {
+                            HStack(spacing: 6) {
+                                Text("Show Closed PRs")
+                                PillBadge(text: "CLOSED", backgroundColor: Color(red: 0xcf / 255.0, green: 0x22 / 255.0, blue: 0x2e / 255.0), textColor: .white)
                             }
+                        }
+                        .onChange(of: showClosed) { newValue in
+                            updateSetting(status: .closed, shouldShow: newValue)
+                        }
                     }
 
                     Divider()
