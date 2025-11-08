@@ -325,19 +325,25 @@ final class GitHubService: Sendable {
                 try Task.checkCancellation()
             }
 
-            if hasMerged || hasClosed {
-                // Query for non-draft closed PRs (includes both merged and closed)
-                let closedQuery = "type:pr review-requested:@me is:closed draft:false \(baseFilters)".trimmingCharacters(in: .whitespaces)
-                let result = try await executeQuery(searchQuery: closedQuery)
-
-                // Filter to only include merged or closed as requested
-                let filtered = result.pullRequests.filter { pr in
-                    let state = pr.state.uppercased()
-                    return (state == "MERGED" && hasMerged) || (state == "CLOSED" && hasClosed)
-                }
-                allPRs.append(contentsOf: filtered)
+            if hasMerged {
+                // Query for merged PRs only
+                let mergedQuery = "type:pr review-requested:@me is:merged \(baseFilters)".trimmingCharacters(in: .whitespaces)
+                let result = try await executeQuery(searchQuery: mergedQuery)
+                allPRs.append(contentsOf: result.pullRequests)
                 anyHasMore = anyHasMore || result.hasMore
-                print("DEBUG: Fetched \(result.pullRequests.count) closed PRs, kept \(filtered.count) after filtering, hasMore: \(result.hasMore)")
+                print("DEBUG: Fetched \(result.pullRequests.count) merged PRs, hasMore: \(result.hasMore)")
+
+                // Check for cancellation between queries
+                try Task.checkCancellation()
+            }
+
+            if hasClosed {
+                // Query for closed but not merged PRs
+                let closedQuery = "type:pr review-requested:@me is:closed is:unmerged \(baseFilters)".trimmingCharacters(in: .whitespaces)
+                let result = try await executeQuery(searchQuery: closedQuery)
+                allPRs.append(contentsOf: result.pullRequests)
+                anyHasMore = anyHasMore || result.hasMore
+                print("DEBUG: Fetched \(result.pullRequests.count) closed (unmerged) PRs, hasMore: \(result.hasMore)")
 
                 // Check for cancellation after final query
                 try Task.checkCancellation()
