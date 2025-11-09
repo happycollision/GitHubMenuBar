@@ -69,6 +69,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var menuBarController: MenuBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Detect if running in test environment and adjust activation policy
+        // This allows XCUITest to interact with the app despite LSUIElement=true
+        configureActivationPolicyForTestEnvironment()
+
         // Initialize ProfileManager and load active profile settings
         Task { @MainActor in
             let profileManager = ProfileManager.shared
@@ -87,6 +91,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Setup Edit menu for keyboard shortcuts (required for LSUIElement apps)
             setupEditMenu()
         }
+    }
+
+    /// Configures the app's activation policy based on whether tests are running.
+    ///
+    /// When running UI tests, we need the app to be visible to XCUITest despite having
+    /// LSUIElement=true in Info.plist. This method detects the test environment and
+    /// sets the activation policy to .accessory instead of the default .prohibited.
+    @MainActor
+    private func configureActivationPolicyForTestEnvironment() {
+        // Check if we're running in XCTest environment
+        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || ProcessInfo.processInfo.environment["GITHUB_MENUBAR_TESTING"] != nil
+
+        #if DEBUG
+        if isRunningTests {
+            // Make app visible for UI testing
+            NSApp.setActivationPolicy(.accessory)
+            print("[AppDelegate] Running in test mode - activation policy set to .accessory")
+        }
+        #endif
     }
 
     /// Creates an Edit menu to enable keyboard shortcuts in menu bar apps.

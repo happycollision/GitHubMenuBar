@@ -8,11 +8,22 @@ let package = Package(
     platforms: [
         .macOS(.v13)
     ],
+    dependencies: [
+        // Snapshot testing for visual regression tests
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0")
+    ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .executableTarget(
             name: "GitHubMenuBar"
         ),
+        .testTarget(
+            name: "GitHubMenuBarTests",
+            dependencies: [
+                "GitHubMenuBar",
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
+            ]
+        )
     ]
 )

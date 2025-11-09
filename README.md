@@ -216,8 +216,37 @@ GitHubMenuBar/
 │       ├── Models.swift              # Data models for PRs
 │       ├── GitHubService.swift       # GitHub CLI integration
 │       └── MenuBarController.swift   # Menu bar UI logic
-└── Info.plist                 # macOS app configuration
+├── Tests/
+│   └── GitHubMenuBarTests/
+│       ├── ModelsTests.swift         # Unit tests for models
+│       ├── AppSettingsTests.swift    # Unit tests for settings
+│       └── IntegrationTests.swift    # Integration tests
+├── Info.plist                 # macOS app configuration
+└── TESTING.md                 # Testing guide and documentation
 ```
+
+### Testing
+
+The project includes comprehensive unit and integration tests:
+
+```bash
+# Run all tests (38 tests)
+swift test
+
+# Run specific test suite
+swift test --filter ModelsTests
+swift test --filter AppSettingsTests
+swift test --filter IntegrationTests
+```
+
+**Test Coverage:**
+- ✅ 38 automated tests covering business logic
+- ✅ PR filtering, sorting, and grouping
+- ✅ Settings management and persistence
+- ✅ Model serialization and data transformations
+- ✅ Fast execution (< 0.1 seconds)
+
+For detailed testing documentation, see [TESTING.md](TESTING.md).
 
 ## License
 

@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 ### Internal
+- Comprehensive test suite with 38 automated tests
+  - Unit tests for models, enums, and data structures
+  - Unit tests for AppSettings with profile snapshot support
+  - Integration tests for filtering, sorting, and grouping logic
+  - Fast execution (< 0.1 seconds for full test suite)
+- Test infrastructure with swift-snapshot-testing dependency
+- Test environment detection for menu bar app compatibility
+- TESTING.md documentation for test suite usage and best practices
 
 ## [0.3.0] - 2025-11-08
 
