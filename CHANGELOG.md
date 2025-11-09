@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Copy button for error messages in menu with visual feedback (checkmark animation)
 
 ### Changed
+- Error messages now display in normal readable color instead of grayed-out text
 
 ### Fixed
 

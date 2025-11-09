@@ -272,8 +272,9 @@ class MenuBarController: NSObject {
             menu.addItem(loadingItem)
             contentItemCount = 1
         } else if let error = lastError, pullRequests.isEmpty {
-            let errorItem = NSMenuItem(title: "Error: \(error)", action: nil, keyEquivalent: "")
-            errorItem.isEnabled = false
+            let errorItem = NSMenuItem()
+            let errorView = createErrorView(error: error)
+            errorItem.view = errorView
             menu.addItem(errorItem)
             contentItemCount = 1
         } else if pullRequests.isEmpty {
@@ -615,6 +616,86 @@ class MenuBarController: NSObject {
 
     private var githubRed: NSColor {
         NSColor(red: 0xcf / 255.0, green: 0x22 / 255.0, blue: 0x2e / 255.0, alpha: 1.0)
+    }
+
+    /// Custom view class for error display that allows buttons to receive mouse events
+    private class ErrorView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            // Let subviews (like buttons) receive their own mouse events
+            for subview in subviews.reversed() {
+                let convertedPoint = convert(point, to: subview)
+                if let hitView = subview.hitTest(convertedPoint) {
+                    return hitView
+                }
+            }
+            return super.hitTest(point)
+        }
+    }
+
+    /// Creates an error view with a copy icon for displaying error messages.
+    ///
+    /// - Parameter error: The error message to display
+    /// - Returns: An NSView containing the error message and copy icon
+    private func createErrorView(error: String) -> NSView {
+        // Match PR item height for consistency (50px total)
+        let containerView = ErrorView(frame: NSRect(x: 0, y: 0, width: 500, height: 50))
+
+        // Error label with normal readable color - centered vertically
+        let errorLabel = NSTextField(labelWithString: "Error: \(error)")
+        errorLabel.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        errorLabel.textColor = .labelColor
+        errorLabel.lineBreakMode = .byTruncatingTail
+        errorLabel.maximumNumberOfLines = 1
+        errorLabel.frame = NSRect(x: 12, y: 16, width: 440, height: 18)
+        containerView.addSubview(errorLabel)
+
+        // Copy icon button - larger and more visible
+        let copyButton = NSButton(frame: NSRect(x: 450, y: 11, width: 36, height: 28))
+        copyButton.bezelStyle = .rounded
+        copyButton.isBordered = true
+        copyButton.title = ""
+
+        // Create and configure the button image - using larger symbol configuration
+        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular, scale: .large)
+        if let image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Copy error message")?.withSymbolConfiguration(symbolConfig) {
+            // Configure the image to be visible
+            image.isTemplate = true
+            copyButton.image = image
+            copyButton.imagePosition = .imageOnly
+        }
+
+        copyButton.contentTintColor = .controlAccentColor
+        copyButton.toolTip = "Copy error message to clipboard"
+        copyButton.target = self
+        copyButton.action = #selector(copyErrorToClipboard(_:))
+
+        // Store the error message in the button's identifier
+        copyButton.identifier = NSUserInterfaceItemIdentifier(error)
+
+        containerView.addSubview(copyButton)
+
+        return containerView
+    }
+
+    /// Copies the error message to the clipboard.
+    @objc private func copyErrorToClipboard(_ sender: NSButton) {
+        guard let error = sender.identifier?.rawValue else { return }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(error, forType: .string)
+
+        // Visual feedback: briefly change the icon
+        if let originalImage = sender.image {
+            sender.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: "Copied")
+            sender.contentTintColor = githubGreen
+
+            // Reset after a brief delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                sender.image = originalImage
+                sender.contentTintColor = .secondaryLabelColor
+            }
+        }
     }
 
     /// Creates a rounded pill image for badge display (e.g., DRAFT indicator).
