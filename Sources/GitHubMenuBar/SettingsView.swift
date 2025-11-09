@@ -170,6 +170,9 @@ struct SettingsView: View {
     /// Group by repository setting
     @State private var groupByRepo: Bool
 
+    /// Reverse click behavior setting
+    @State private var reverseClickBehavior: Bool
+
     /// Repository filter settings
     @State private var repoFilterEnabled: Bool
     @State private var repoFilterMode: FilterMode
@@ -234,6 +237,9 @@ struct SettingsView: View {
 
         // Initialize group by repo from AppSettings
         _groupByRepo = State(initialValue: AppSettings.shared.groupByRepo)
+
+        // Initialize reverse click behavior from AppSettings
+        _reverseClickBehavior = State(initialValue: AppSettings.shared.reverseClickBehavior)
 
         // Initialize filter settings from AppSettings
         _repoFilterEnabled = State(initialValue: AppSettings.shared.repoFilterEnabled)
@@ -420,6 +426,18 @@ struct SettingsView: View {
                             }
 
                         Text("When enabled, PRs are organized by repository with headers.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        Toggle("Reverse Click Behavior", isOn: $reverseClickBehavior)
+                            .onChange(of: reverseClickBehavior) { newValue in
+                                updateReverseClickBehavior(newValue: newValue)
+                            }
+
+                        Text("When enabled, regular click copies URL and ⌘-click opens in browser.\nWhen disabled (default), regular click opens in browser and ⌘-click copies URL.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -624,6 +642,9 @@ struct SettingsView: View {
         // Reload group by repo
         groupByRepo = AppSettings.shared.groupByRepo
 
+        // Reload reverse click behavior
+        reverseClickBehavior = AppSettings.shared.reverseClickBehavior
+
         // Reload filter settings
         repoFilterEnabled = AppSettings.shared.repoFilterEnabled
         repoFilterMode = AppSettings.shared.repoFilterMode
@@ -694,6 +715,14 @@ struct SettingsView: View {
         if newValue != AppSettings.shared.groupByRepo {
             AppSettings.shared.groupByRepo = newValue
             onSettingsChanged?()
+        }
+    }
+
+    /// Updates the reverse click behavior setting in AppSettings
+    private func updateReverseClickBehavior(newValue: Bool) {
+        if newValue != AppSettings.shared.reverseClickBehavior {
+            AppSettings.shared.reverseClickBehavior = newValue
+            // No need to trigger refresh - this is purely a UI interaction setting
         }
     }
 

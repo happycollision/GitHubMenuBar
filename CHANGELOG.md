@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Copy button for error messages in menu with visual feedback (checkmark animation)
+- Command-click to copy PR URL to clipboard with visual feedback (green flash)
+- Setting to reverse click behavior (click to copy, command-click to open)
 
 ### Changed
 - Error messages now display in normal readable color instead of grayed-out text

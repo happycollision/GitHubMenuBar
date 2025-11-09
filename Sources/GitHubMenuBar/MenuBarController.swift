@@ -390,8 +390,14 @@ class MenuBarController: NSObject {
     /// Custom clickable view for menu items that forwards clicks to the menu item's action.
     private class ClickablePRView: NSView {
         var onClick: (() -> Void)?
+        var onCopy: (() -> Void)?
         private var trackingArea: NSTrackingArea?
         private var isHovered = false {
+            didSet {
+                needsDisplay = true
+            }
+        }
+        private var showCopyFeedback = false {
             didSet {
                 needsDisplay = true
             }
@@ -434,15 +440,44 @@ class MenuBarController: NSObject {
         }
 
         override func mouseUp(with event: NSEvent) {
-            onClick?()
+            let isCommandClick = event.modifierFlags.contains(.command)
+            let reverseMode = AppSettings.shared.reverseClickBehavior
+
+            // Determine action based on click type and reverse mode setting:
+            // Normal mode: regular click = open, cmd-click = copy
+            // Reverse mode: regular click = copy, cmd-click = open
+            let shouldCopy = isCommandClick != reverseMode
+
+            if shouldCopy {
+                onCopy?()
+                showCopyFeedback(animated: true)
+            } else {
+                onClick?()
+            }
+
             // Close the menu after click
             self.enclosingMenuItem?.menu?.cancelTracking()
+        }
+
+        private func showCopyFeedback(animated: Bool) {
+            guard animated else { return }
+
+            showCopyFeedback = true
+
+            // Reset after brief delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.showCopyFeedback = false
+            }
         }
 
         override func draw(_ dirtyRect: NSRect) {
             super.draw(dirtyRect)
 
-            if isHovered {
+            if showCopyFeedback {
+                // Show green flash for copy feedback
+                NSColor.systemGreen.withAlphaComponent(0.3).setFill()
+                bounds.fill()
+            } else if isHovered {
                 // Use a subtle highlight color for hover effect
                 NSColor.controlAccentColor.withAlphaComponent(0.15).setFill()
                 bounds.fill()
@@ -593,11 +628,18 @@ class MenuBarController: NSObject {
         let menuItem = NSMenuItem()
         let prView = createPRView(pr: pr, includeRepoName: includeRepoName)
 
-        // Set up click handler
+        // Set up click handlers
         if let clickableView = prView as? ClickablePRView {
             clickableView.onClick = {
                 guard let url = URL(string: pr.url) else { return }
                 NSWorkspace.shared.open(url)
+            }
+
+            clickableView.onCopy = {
+                guard let url = URL(string: pr.url) else { return }
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(url.absoluteString, forType: .string)
             }
         }
 

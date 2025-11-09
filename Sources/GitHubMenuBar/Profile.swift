@@ -36,6 +36,7 @@ struct ProfileSettings: Codable {
     var excludedReviewDecisions: [String]  // Store as array for JSON
     var refreshIntervalMinutes: Int
     var groupByRepo: Bool
+    var reverseClickBehavior: Bool
     var repoFilterEnabled: Bool
     var repoFilterMode: String
     var whitelistedRepositories: [String]
@@ -50,6 +51,7 @@ struct ProfileSettings: Codable {
         excludedReviewDecisions: [String] = [],
         refreshIntervalMinutes: Int = 15,
         groupByRepo: Bool = true,
+        reverseClickBehavior: Bool = false,
         repoFilterEnabled: Bool = false,
         repoFilterMode: String = "blacklist",
         whitelistedRepositories: [String] = [],
@@ -63,6 +65,7 @@ struct ProfileSettings: Codable {
         self.excludedReviewDecisions = excludedReviewDecisions
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.groupByRepo = groupByRepo
+        self.reverseClickBehavior = reverseClickBehavior
         self.repoFilterEnabled = repoFilterEnabled
         self.repoFilterMode = repoFilterMode
         self.whitelistedRepositories = whitelistedRepositories
@@ -78,6 +81,7 @@ struct ProfileSettings: Codable {
     static func == (lhs: ProfileSettings, rhs: ProfileSettings) -> Bool {
         return lhs.refreshIntervalMinutes == rhs.refreshIntervalMinutes &&
                lhs.groupByRepo == rhs.groupByRepo &&
+               lhs.reverseClickBehavior == rhs.reverseClickBehavior &&
                lhs.repoFilterEnabled == rhs.repoFilterEnabled &&
                lhs.repoFilterMode == rhs.repoFilterMode &&
                lhs.authorFilterEnabled == rhs.authorFilterEnabled &&

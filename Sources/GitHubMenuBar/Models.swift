@@ -77,6 +77,7 @@ class AppSettings: ObservableObject {
     private let excludedReviewDecisionsKey = "excludedReviewDecisions"
     private let refreshIntervalKey = "refreshIntervalMinutes"
     private let groupByRepoKey = "groupByRepo"
+    private let reverseClickBehaviorKey = "reverseClickBehavior"
 
     // Filter keys
     private let repoFilterEnabledKey = "repoFilterEnabled"
@@ -228,6 +229,22 @@ class AppSettings: ObservableObject {
         }
         set {
             defaults.set(newValue, forKey: groupByRepoKey)
+            NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    /// Get or set whether click behavior should be reversed.
+    ///
+    /// When disabled (default), regular click opens the PR in browser and cmd-click copies the URL.
+    /// When enabled, regular click copies the URL and cmd-click opens the PR in browser.
+    ///
+    /// - Returns: True if click behavior is reversed, false otherwise (default: false)
+    var reverseClickBehavior: Bool {
+        get {
+            return defaults.bool(forKey: reverseClickBehaviorKey)
+        }
+        set {
+            defaults.set(newValue, forKey: reverseClickBehaviorKey)
             NotificationCenter.default.post(name: AppSettings.didChangeNotification, object: nil)
         }
     }
@@ -431,6 +448,7 @@ class AppSettings: ObservableObject {
             excludedReviewDecisions: Array(excludedReviewDecisions.map { $0.rawValue }).sorted(),
             refreshIntervalMinutes: refreshIntervalMinutes,
             groupByRepo: groupByRepo,
+            reverseClickBehavior: reverseClickBehavior,
             repoFilterEnabled: repoFilterEnabled,
             repoFilterMode: repoFilterMode.rawValue,
             whitelistedRepositories: Array(whitelistedRepositories).sorted(),
@@ -449,6 +467,7 @@ class AppSettings: ObservableObject {
         defaults.set(settings.excludedReviewDecisions, forKey: excludedReviewDecisionsKey)
         defaults.set(settings.refreshIntervalMinutes, forKey: refreshIntervalKey)
         defaults.set(settings.groupByRepo, forKey: groupByRepoKey)
+        defaults.set(settings.reverseClickBehavior, forKey: reverseClickBehaviorKey)
         defaults.set(settings.repoFilterEnabled, forKey: repoFilterEnabledKey)
         defaults.set(settings.repoFilterMode, forKey: repoFilterModeKey)
         defaults.set(settings.whitelistedRepositories, forKey: whitelistedRepositoriesKey)
