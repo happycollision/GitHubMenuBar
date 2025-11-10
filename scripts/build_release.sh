@@ -40,6 +40,42 @@ cp "${BUILD_DIR}/${APP_NAME}" "${APP_BUNDLE}/Contents/MacOS/"
 echo "📋 Copying Info.plist..."
 cp Info.plist "${APP_BUNDLE}/Contents/"
 
+# Generate app icon from PNG
+echo "🎨 Generating app icon from PNG..."
+ICON_PNG="icons/AppIcon.png"
+if [ -f "${ICON_PNG}" ]; then
+    # Create iconset directory
+    ICONSET_DIR="/tmp/GitHubMenuBar.iconset"
+    rm -rf "${ICONSET_DIR}"
+    mkdir -p "${ICONSET_DIR}"
+
+    # Generate all required icon sizes using sips
+    sips -z 16 16     "${ICON_PNG}" --out "${ICONSET_DIR}/icon_16x16.png" > /dev/null
+    sips -z 32 32     "${ICON_PNG}" --out "${ICONSET_DIR}/icon_16x16@2x.png" > /dev/null
+    sips -z 32 32     "${ICON_PNG}" --out "${ICONSET_DIR}/icon_32x32.png" > /dev/null
+    sips -z 64 64     "${ICON_PNG}" --out "${ICONSET_DIR}/icon_32x32@2x.png" > /dev/null
+    sips -z 128 128   "${ICON_PNG}" --out "${ICONSET_DIR}/icon_128x128.png" > /dev/null
+    sips -z 256 256   "${ICON_PNG}" --out "${ICONSET_DIR}/icon_128x128@2x.png" > /dev/null
+    sips -z 256 256   "${ICON_PNG}" --out "${ICONSET_DIR}/icon_256x256.png" > /dev/null
+    sips -z 512 512   "${ICON_PNG}" --out "${ICONSET_DIR}/icon_256x256@2x.png" > /dev/null
+    sips -z 512 512   "${ICON_PNG}" --out "${ICONSET_DIR}/icon_512x512.png" > /dev/null
+    sips -z 1024 1024 "${ICON_PNG}" --out "${ICONSET_DIR}/icon_512x512@2x.png" > /dev/null
+
+    # Convert iconset to icns
+    iconutil -c icns "${ICONSET_DIR}" -o "${APP_BUNDLE}/Contents/Resources/AppIcon.icns"
+
+    if [ -f "${APP_BUNDLE}/Contents/Resources/AppIcon.icns" ]; then
+        echo "✅ App icon generated successfully"
+    else
+        echo "⚠️  Warning: Failed to generate AppIcon.icns"
+    fi
+
+    # Clean up temporary iconset
+    rm -rf "${ICONSET_DIR}"
+else
+    echo "⚠️  Warning: ${ICON_PNG} not found, skipping icon generation"
+fi
+
 # Create PkgInfo file (optional but traditional)
 echo "APPL????" > "${APP_BUNDLE}/Contents/PkgInfo"
 

@@ -1,0 +1,225 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.45417,0.69909,0.90063,1.00000",
+      "display-p3:0.08399,0.10224,0.58227,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "blur-material-specializations" : [
+        {
+          "value" : 0.1
+        },
+        {
+          "appearance" : "dark",
+          "value" : 0.2
+        },
+        {
+          "appearance" : "tinted",
+          "value" : 0.3
+        }
+      ],
+      "layers" : [
+        {
+          "blend-mode-specializations" : [
+            {
+              "value" : "normal"
+            },
+            {
+              "appearance" : "tinted",
+              "value" : "screen"
+            }
+          ],
+          "fill-specializations" : [
+            {
+              "value" : {
+                "automatic-gradient" : "display-p3:1.00000,0.00000,0.04893,1.00000"
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "display-p3:0.56079,0.56079,0.56079,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "Prohibited.png",
+          "name" : "Prohibited",
+          "opacity-specializations" : [
+            {
+              "value" : 1
+            },
+            {
+              "appearance" : "dark",
+              "value" : 0.4
+            },
+            {
+              "appearance" : "tinted",
+              "value" : 1
+            }
+          ],
+          "position" : {
+            "scale" : 1.06,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow-specializations" : [
+        {
+          "value" : {
+            "kind" : "layer-color",
+            "opacity" : 0.4
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "kind" : "neutral",
+            "opacity" : 1
+          }
+        }
+      ],
+      "specular-specializations" : [
+        {
+          "value" : true
+        },
+        {
+          "appearance" : "tinted",
+          "value" : true
+        }
+      ],
+      "translucency-specializations" : [
+        {
+          "value" : {
+            "enabled" : true,
+            "value" : 0.8
+          }
+        },
+        {
+          "appearance" : "dark",
+          "value" : {
+            "enabled" : true,
+            "value" : 0.2
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "enabled" : true,
+            "value" : 1
+          }
+        }
+      ]
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "blend-mode-specializations" : [
+            {
+              "value" : "overlay"
+            },
+            {
+              "appearance" : "dark",
+              "value" : "screen"
+            },
+            {
+              "appearance" : "tinted",
+              "value" : "normal"
+            }
+          ],
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "display-p3:0.85189,0.81990,0.96611,1.00000"
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "display-p3:0.88975,0.85382,1.00000,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "image-name" : "Anchor.png",
+          "name" : "Anchor",
+          "opacity-specializations" : [
+            {
+              "value" : 1
+            },
+            {
+              "appearance" : "dark",
+              "value" : 0.7
+            },
+            {
+              "appearance" : "tinted",
+              "value" : 1
+            }
+          ],
+          "position" : {
+            "scale" : 0.79,
+            "translation-in-points" : [
+              0,
+              -18
+            ]
+          }
+        }
+      ],
+      "shadow-specializations" : [
+        {
+          "value" : {
+            "kind" : "layer-color",
+            "opacity" : 0.4
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "kind" : "layer-color",
+            "opacity" : 1
+          }
+        }
+      ],
+      "specular-specializations" : [
+        {
+          "appearance" : "dark",
+          "value" : true
+        }
+      ],
+      "translucency-specializations" : [
+        {
+          "value" : {
+            "enabled" : true,
+            "value" : 0.5
+          }
+        },
+        {
+          "appearance" : "dark",
+          "value" : {
+            "enabled" : true,
+            "value" : 0.7
+          }
+        },
+        {
+          "appearance" : "tinted",
+          "value" : {
+            "enabled" : true,
+            "value" : 0.6
+          }
+        }
+      ]
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}

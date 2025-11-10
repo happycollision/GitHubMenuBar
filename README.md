@@ -221,9 +221,32 @@ GitHubMenuBar/
 │       ├── ModelsTests.swift         # Unit tests for models
 │       ├── AppSettingsTests.swift    # Unit tests for settings
 │       └── IntegrationTests.swift    # Integration tests
+├── icons/
+│   ├── GithubMenuBar.icon/    # Source Liquid Glass icon (requires Xcode)
+│   └── AppIcon.png            # Exported PNG for CI builds
+├── scripts/
+│   └── build_release.sh       # Build and package script
 ├── Info.plist                 # macOS app configuration
 └── TESTING.md                 # Testing guide and documentation
 ```
+
+### App Icon Workflow
+
+The app uses Apple's new Liquid Glass icon format (`.icon`), but since this project is built with Swift Package Manager (not Xcode), we can't use the `.icon` format directly in CI/CD pipelines.
+
+**Current Workflow:**
+1. **Source**: `icons/GithubMenuBar.icon/` - The original Liquid Glass icon created with [Icon Composer](https://developer.apple.com/icon-composer/)
+2. **Build-ready**: `icons/AppIcon.png` - A 1024x1024 PNG export of the icon
+3. **CI/CD**: The build script (`scripts/build_release.sh`) automatically generates an `.icns` file from the PNG using native macOS tools (`sips` and `iconutil`)
+
+**To update the app icon:**
+1. Edit the icon in Icon Composer (opens `icons/GithubMenuBar.icon/`)
+2. Export a new 1024x1024 PNG as `icons/AppIcon.png`
+3. Commit both files to the repository
+4. The build script will automatically generate the `.icns` file
+
+**Future Improvement:**
+Once Apple provides CLI tools to compile `.icon` bundles directly (or when the project moves to Xcode), we can use the Liquid Glass icon format with all its dynamic effects. Until then, the PNG-based workflow ensures CI/CD compatibility while maintaining the source `.icon` file for future use.
 
 ### Testing
 

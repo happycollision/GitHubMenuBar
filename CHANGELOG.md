@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Copy button for error messages in menu with visual feedback (checkmark animation)
 - Command-click to copy PR URL to clipboard with visual feedback (green flash)
 - Setting to reverse click behavior (click to copy, command-click to open)
+- Gave the app an icon!
 
 ### Changed
 - Error messages now display in normal readable color instead of grayed-out text
@@ -26,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test infrastructure with swift-snapshot-testing dependency
 - Test environment detection for menu bar app compatibility
 - TESTING.md documentation for test suite usage and best practices
+- App icon workflow documentation for Liquid Glass icons
+- Organized icon assets in dedicated `icons/` directory
+  - Source Liquid Glass icon (`icons/GithubMenuBar.icon/`)
+  - Build-ready PNG export (`icons/AppIcon.png`)
+  - Automated .icns generation using native macOS tools (sips, iconutil)
 
 ## [0.3.0] - 2025-11-08
 

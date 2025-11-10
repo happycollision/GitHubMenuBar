@@ -20,5 +20,7 @@
 	<string>Copyright © 2025</string>
 	<key>NSPrincipalClass</key>
 	<string>GitHubMenuBar.MenuBarApplication</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 </dict>
 </plist>
