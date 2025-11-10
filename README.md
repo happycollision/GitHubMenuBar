@@ -44,6 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/i
 This will download and extract only. You'll need to:
 1. Manually copy the app to `/Applications`
 2. Right-click and select "Open" on first launch (unsigned app)
+   - **Note**: If you have strict Gatekeeper settings, right-click may not work. You'll need to manually run: `xattr -cr /Applications/GitHubMenuBar.app`
 
 **Security note:** The installer is [open source and versioned in this repo](install.sh) - review it before running. The `--remove-quarantine` flag runs `xattr -cr` to tell macOS to trust this specific app (doesn't affect system-wide security). The `--move-to-applications` flag moves the app to `/Applications`.
 
@@ -76,7 +77,7 @@ curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/i
 3. **First launch** (unsigned app):
    - Right-click the app and select **Open**
    - Click **Open** in the security dialog
-   - Alternatively, run: `xattr -cr /Applications/GitHubMenuBar.app`
+   - **Note**: If you have strict Gatekeeper settings, right-click may not work. Run: `xattr -cr /Applications/GitHubMenuBar.app`
 
 4. **Install and authenticate GitHub CLI**:
    ```bash

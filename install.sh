@@ -67,6 +67,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --version VERSION         Install specific version (default: latest)"
       echo "                            VERSION can look like: 'latest', '0.3.0', or 'v0.3.0'"
       echo "  --remove-quarantine       Remove quarantine attributes (allows app to launch without right-click)"
+      echo "                            Note: Strict Gatekeeper settings may require manual xattr -cr instead"
       echo "  --move-to-applications    Move app to /Applications folder"
       echo "  --yolo                    Full auto install (enables --remove-quarantine and --move-to-applications)"
       echo "  --list-versions           List available versions and release URLs (no installation)"
@@ -305,6 +306,8 @@ if [ "$REMOVE_QUARANTINE" = true ]; then
 else
   print_info "Quarantine attributes not removed (use --remove-quarantine to enable)"
   print_info "On first launch, right-click the app and select 'Open' (unsigned app)"
+  print_info "Note: Strict Gatekeeper settings may require manual quarantine removal:"
+  print_info "  xattr -cr \"$APP_PATH\""
 fi
 
 # Move to Applications (opt-in)

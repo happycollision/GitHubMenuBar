@@ -117,11 +117,10 @@ jobs:
             2. Extract the ZIP file
             3. Move `GitHubMenuBar.app` to your Applications folder
             4. **First launch**: Right-click the app and select "Open" (required for unsigned apps)
-
-            Or bypass Gatekeeper with:
-            ```bash
-            xattr -cr /Applications/GitHubMenuBar.app
-            ```
+               - **Note**: If you have strict Gatekeeper settings, right-click may not work. Use:
+               ```bash
+               xattr -cr /Applications/GitHubMenuBar.app
+               ```
 
             ### Requirements
             - macOS 13.0 (Ventura) or later
