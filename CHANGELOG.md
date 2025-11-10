@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Smart error handling with helpful suggestions
 
 ### Changed
+- Menu bar icon updated to crossed-out anchor design (Unicode anchor with rotated SF Symbol nosign overlay)
 - Error messages now display in normal readable color instead of grayed-out text
 
 ### Fixed

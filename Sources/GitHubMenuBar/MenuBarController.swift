@@ -74,12 +74,82 @@ class MenuBarController: NSObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            // Use SF Symbol for the menu bar icon
-            button.image = NSImage(systemSymbolName: "list.bullet.rectangle", accessibilityDescription: "GitHub PRs")
+            // Use composite menu bar icon: anchor crossed out with slash
+            button.image = createMenuBarIcon()
         }
 
         menu = NSMenu()
         statusItem.menu = menu
+    }
+
+    /// Creates a composite menu bar icon by layering an anchor character with a nosign (circle with slash) symbol.
+    ///
+    /// - Returns: An NSImage suitable for the menu bar
+    private func createMenuBarIcon() -> NSImage? {
+        // Menu bar icons are typically around 22x22 points
+        let size = NSSize(width: 22, height: 22)
+
+        // Get the nosign symbol (circle with slash) - thin weight for subtlety
+        let nosignConfig = NSImage.SymbolConfiguration(pointSize: 18, weight: .thin)
+        guard let nosignImage = NSImage(systemSymbolName: "nosign", accessibilityDescription: nil)?
+            .withSymbolConfiguration(nosignConfig) else {
+            // Fallback to previous icon if symbol not available
+            return NSImage(systemSymbolName: "list.bullet.rectangle", accessibilityDescription: "GitHub PRs")
+        }
+
+        // Create composite image
+        let compositeImage = NSImage(size: size)
+        compositeImage.lockFocus()
+
+        // Save graphics state for rotation
+        NSGraphicsContext.current?.saveGraphicsState()
+
+        // Draw nosign centered and rotated 90 degrees
+        let nosignSize = nosignImage.size
+        let centerX = size.width / 2
+        let centerY = size.height / 2
+
+        // Set up rotation transform around the center
+        var transform = AffineTransform()
+        transform.translate(x: centerX, y: centerY)
+        transform.rotate(byDegrees: 90)
+        transform.translate(x: -nosignSize.width / 2, y: -nosignSize.height / 2)
+
+        // Apply the transform
+        (transform as NSAffineTransform).concat()
+
+        // Draw the rotated nosign
+        nosignImage.draw(at: .zero, from: NSRect(origin: .zero, size: nosignSize), operation: .sourceOver, fraction: 1.0)
+
+        // Restore graphics state
+        NSGraphicsContext.current?.restoreGraphicsState()
+
+        // Draw anchor character using Unicode (U+2693 with text presentation selector U+FE0E)
+        let anchorChar = "\u{2693}\u{FE0E}"  // ⚓︎ (text style, not emoji)
+        let anchorFont = NSFont.systemFont(ofSize: 20, weight: .medium)
+        let anchorAttributes: [NSAttributedString.Key: Any] = [
+            .font: anchorFont,
+            .foregroundColor: NSColor.labelColor
+        ]
+
+        let anchorString = anchorChar as NSString
+        let anchorSize = anchorString.size(withAttributes: anchorAttributes)
+
+        // Center the anchor and move it up by 2 pixels and right by 1 pixel relative to the circle
+        let anchorRect = NSRect(
+            x: (size.width - anchorSize.width) / 2 + 1,  // Move right by 1 pixel
+            y: (size.height - anchorSize.height) / 2 + 1,  // Move up by 2 pixels (was +2, now +1)
+            width: anchorSize.width,
+            height: anchorSize.height
+        )
+
+        anchorString.draw(in: anchorRect, withAttributes: anchorAttributes)
+
+        compositeImage.unlockFocus()
+        compositeImage.isTemplate = true // Allow system to apply proper tinting
+        compositeImage.accessibilityDescription = "GitHub PRs"
+
+        return compositeImage
     }
 
     /// Sets up a timer to automatically refresh PR data based on user's configured interval.
