@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Internal
+
+## [0.4.0] - 2025-11-10
+
+### Added
 - Copy button for error messages in menu with visual feedback (checkmark animation)
 - Command-click to copy PR URL to clipboard with visual feedback (green flash)
 - Setting to reverse click behavior (click to copy, command-click to open)
@@ -27,8 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Menu bar icon updated to crossed-out anchor design (Unicode anchor with rotated SF Symbol nosign overlay)
 - Error messages now display in normal readable color instead of grayed-out text
-
-### Fixed
 
 ### Internal
 - Comprehensive test suite with 38 automated tests
