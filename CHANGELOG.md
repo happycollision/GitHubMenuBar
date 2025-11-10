@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Command-click to copy PR URL to clipboard with visual feedback (green flash)
 - Setting to reverse click behavior (click to copy, command-click to open)
 - Gave the app an icon!
+- **curl|bash installer script** (`install.sh`)
+  - YOLO mode for full auto-install (`--yolo`)
+  - Conservative mode (download and extract only, you handle the rest)
+  - Version selection support (`--version v0.3.0` or `--version latest`)
+  - Flexible version format (accepts `0.3.0` or `v0.3.0`)
+  - `--list-versions` flag to view all available releases
+  - `--remove-quarantine` flag to bypass macOS unsigned app security
+  - `--move-to-applications` flag to automatically move to /Applications
+  - System requirements checking (macOS version, GitHub CLI)
+  - Colored output with clear status indicators
+  - Smart error handling with helpful suggestions
 
 ### Changed
 - Error messages now display in normal readable color instead of grayed-out text
@@ -24,6 +35,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unit tests for AppSettings with profile snapshot support
   - Integration tests for filtering, sorting, and grouping logic
   - Fast execution (< 0.1 seconds for full test suite)
+- Installer test suite with 15 automated tests
+  - Tests argument parsing, version handling, help text
+  - Validates `--list-versions` functionality
+  - Tests version normalization and error handling
+  - Safe for CI (no actual installations performed)
+  - Execution time: ~5 seconds (includes GitHub API calls)
+- GitHub Actions CI workflow with security protections
+  - Runs 53 total tests (38 Swift + 15 installer)
+  - Fork PR protection prevents resource abuse
+  - Protects against CI cost ($0.08/min for macOS runners)
+  - Prevents GitHub API rate limit exhaustion
+- Build script integration runs all tests before building
 - Test infrastructure with swift-snapshot-testing dependency
 - Test environment detection for menu bar app compatibility
 - TESTING.md documentation for test suite usage and best practices

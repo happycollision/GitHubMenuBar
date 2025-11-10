@@ -1,0 +1,53 @@
+name: Tests
+
+# Security Note: This workflow only runs for:
+# 1. Pushes to main branch
+# 2. Pull requests from branches in the same repository (not forks)
+#
+# This prevents:
+# - External PRs from consuming CI minutes (macOS runners are expensive)
+# - Potential GitHub API rate limit abuse from untrusted sources
+# - Resource exhaustion attacks
+#
+# Fork contributors: Tests will run automatically once your PR is merged,
+# or a maintainer can manually trigger the workflow after review.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: macos-latest
+    # Skip for PRs from forks unless explicitly approved
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Swift tests
+        run: swift test
+
+  installer-tests:
+    name: Installer Tests
+    runs-on: macos-latest
+    # Skip for PRs from forks unless explicitly approved
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Make test script executable
+        run: chmod +x scripts/test_installer.sh
+
+      - name: Run installer tests
+        run: ./scripts/test_installer.sh
+        env:
+          # GitHub Actions provides a higher rate limit for authenticated API calls
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

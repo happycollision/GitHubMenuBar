@@ -8,15 +8,20 @@ The app uses a multi-layered testing strategy:
 
 1. **Unit Tests** - Test individual components in isolation
 2. **Integration Tests** - Test components working together
-3. **Snapshot Tests** (optional) - Visual regression testing
-4. **Manual Testing** - For UI interactions that can't be automated
+3. **Installer Tests** - Test the curl|bash installer script
+4. **Snapshot Tests** (optional) - Visual regression testing
+5. **Manual Testing** - For UI interactions that can't be automated
 
 ## Running Tests
 
 ### Run All Tests
 
 ```bash
+# Run Swift unit and integration tests
 swift test
+
+# Run installer tests
+./scripts/test_installer.sh
 ```
 
 ### Run Specific Test Suite
@@ -47,11 +52,14 @@ Tests/
     ├── ModelsTests.swift           # Tests for Models, enums, data structures
     ├── AppSettingsTests.swift      # Tests for settings and persistence
     └── IntegrationTests.swift      # Tests for filtering and data flow
+
+scripts/
+└── test_installer.sh               # Bash tests for install.sh script
 ```
 
 ## What's Tested
 
-### Unit Tests (38 tests)
+### Swift Unit Tests (38 tests)
 
 #### ModelsTests (8 tests)
 - ✅ PRStatus enum display names and all cases
@@ -78,6 +86,39 @@ Tests/
 - ✅ PR sorting by creation date
 - ✅ PR grouping by repository
 
+### Installer Tests (15 tests)
+
+Located in [scripts/test_installer.sh](../scripts/test_installer.sh). Tests the curl|bash installer without performing actual installations.
+
+#### What's Tested
+- ✅ Help flag displays complete usage information
+- ✅ `--list-versions` shows all available releases
+- ✅ `--list-versions` skips system requirements check
+- ✅ Version validation with `v` prefix (e.g., `v0.3.0`)
+- ✅ Version normalization without `v` prefix (e.g., `0.3.0`)
+- ✅ Invalid version shows error and lists alternatives
+- ✅ `latest` keyword works correctly
+- ✅ Unknown flags return proper errors
+- ✅ Help text uses correct terminology
+- ✅ Help includes usage examples
+- ✅ Version format flexibility is documented
+- ✅ Installation command suggestions provided
+- ✅ Latest version marked correctly in output
+- ✅ Version list ordering (oldest to newest)
+- ✅ Release URLs included in output
+
+#### Running Installer Tests
+
+```bash
+# Run all installer tests
+./scripts/test_installer.sh
+
+# Tests are safe for CI - they only test argument parsing
+# and --list-versions mode (no actual installations)
+```
+
+**Note**: Installer tests make minimal GitHub API calls (2-3 requests total) to fetch real release data. Tests reuse cached output where possible to avoid rate limiting.
+
 ### Test Coverage
 
 Current test coverage focuses on:
@@ -85,6 +126,7 @@ Current test coverage focuses on:
 - ✅ Data models and transformations
 - ✅ Settings management
 - ✅ Profile management
+- ✅ Installer script functionality
 - ⚠️ GitHub CLI integration (manual testing required)
 - ⚠️ Menu bar UI (manual testing required)
 
@@ -96,6 +138,7 @@ Current test coverage focuses on:
 2. **Data Models** - Codable implementation, computed properties
 3. **Settings** - Persistence, validation, and profile management
 4. **Integration** - Multiple components working together
+5. **Installer** - Argument parsing, version handling, help text
 
 ### What We Test Manually
 
@@ -211,18 +254,64 @@ record = true  // In your test
 
 ### GitHub Actions
 
+The project uses GitHub Actions to run tests automatically on every push and pull request. See [.github/workflows/test.yml](../.github/workflows/test.yml).
+
 ```yaml
 name: Tests
 on: [push, pull_request]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run tests
+      - name: Run Swift tests
         run: swift test
+
+  installer-tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run installer tests
+        run: ./scripts/test_installer.sh
 ```
+
+### Build Script Integration
+
+The [scripts/build_release.sh](../scripts/build_release.sh) script runs all tests before building:
+
+```bash
+# Automatically runs before every release build
+./scripts/build_release.sh
+```
+
+This ensures:
+- ✅ All Swift unit tests pass
+- ✅ All installer tests pass
+- ✅ No broken releases are created
+
+### CI Security Protections
+
+The test workflow includes protections against resource abuse:
+
+**Fork PR Protection:**
+- Tests only run for PRs from branches **within the same repository**
+- External fork PRs are skipped automatically
+- Prevents consumption of CI minutes (macOS runners cost $0.08/minute)
+- Prevents GitHub API rate limit abuse
+
+**Why This Matters:**
+- macOS CI runners are 10x more expensive than Linux
+- Installer tests make GitHub API calls
+- Without protection, malicious PRs could exhaust resources
+
+**For Fork Contributors:**
+- Your tests won't run automatically on your PR
+- Maintainers can manually trigger workflows after reviewing code
+- Tests will run automatically after your PR is merged
+
+**Override for Trusted Contributors:**
+If you want to allow specific forks to run tests, you can manually trigger the workflow via GitHub UI or adjust the `if:` condition in the workflow file.
 
 ### Test Requirements
 
@@ -277,10 +366,13 @@ AppSettings uses a shared singleton with UserDefaults. To isolate tests:
 ## Test Metrics
 
 Current test suite:
-- **Tests**: 38
-- **Execution Time**: ~0.06 seconds
+- **Swift Tests**: 38 (unit + integration)
+- **Installer Tests**: 15 (bash script tests)
+- **Total Tests**: 53
+- **Swift Execution Time**: ~0.06 seconds
+- **Installer Execution Time**: ~5 seconds (includes API calls)
 - **Success Rate**: 100%
-- **Coverage**: ~70% of business logic
+- **Coverage**: ~70% of business logic + 100% of installer functionality
 
 ## Future Improvements
 

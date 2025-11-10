@@ -18,6 +18,27 @@ VERSION=$(defaults read "$(pwd)/Info.plist" CFBundleShortVersionString 2>/dev/nu
 
 echo "🔨 Building ${APP_NAME} v${VERSION}..."
 
+# Run tests before building
+echo "🧪 Running tests..."
+swift test
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed! Aborting build."
+  exit 1
+fi
+
+# Run installer tests
+echo "🧪 Running installer tests..."
+if [ -f "scripts/test_installer.sh" ]; then
+  chmod +x scripts/test_installer.sh
+  ./scripts/test_installer.sh
+  if [ $? -ne 0 ]; then
+    echo "❌ Installer tests failed! Aborting build."
+    exit 1
+  fi
+else
+  echo "⚠️  Warning: Installer tests not found at scripts/test_installer.sh"
+fi
+
 # Clean previous builds
 echo "🧹 Cleaning previous builds..."
 rm -rf "${OUTPUT_DIR}"

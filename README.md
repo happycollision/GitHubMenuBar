@@ -17,10 +17,56 @@ A lightweight macOS menu bar application that monitors GitHub pull requests wher
 
 ## Installation
 
-### Download Pre-built Release (Recommended)
+### Quick Install (Recommended)
+
+**YOLO mode (full auto install):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/install.sh | bash -s -- --yolo
+```
+
+This will:
+- Download and extract the latest release
+- Remove quarantine attributes (allows unsigned app to launch normally)
+- Move to `/Applications` folder (requires admin privileges)
+- Check for GitHub CLI and prompt if not installed
+
+Equivalent to using `--remove-quarantine --move-to-applications` flags.
+
+**Note:** Moving to `/Applications` works automatically for admin users on macOS. If you're not an admin user, use the conservative installation method instead.
+
+**Conservative installation (you handle the final steps):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/install.sh | bash
+```
+
+This will download and extract only. You'll need to:
+1. Manually copy the app to `/Applications`
+2. Right-click and select "Open" on first launch (unsigned app)
+
+**Security note:** The installer is [open source and versioned in this repo](install.sh) - review it before running. The `--remove-quarantine` flag runs `xattr -cr` to tell macOS to trust this specific app (doesn't affect system-wide security). The `--move-to-applications` flag moves the app to `/Applications`.
+
+**More Options:**
+
+```bash
+# List all available versions (no installation)
+curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/install.sh | bash -s -- --list-versions
+
+# Install specific version (YOLO mode)
+curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/install.sh | bash -s -- --version v0.3.0 --yolo
+
+# Full installation with explicit flags (same as --yolo)
+curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/install.sh | bash -s -- --remove-quarantine --move-to-applications
+
+# Show all options
+curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/install.sh | bash -s -- --help
+```
+
+### Manual Installation
 
 1. **Download the latest release**:
-   - Go to the [Releases page](https://github.com/dondenton/GitHubMenuBar/releases)
+   - Go to the [Releases page](https://github.com/happycollision/GitHubMenuBar/releases)
    - Download `GitHubMenuBar.zip`
 
 2. **Extract and install**:
@@ -198,8 +244,12 @@ gh auth login
 
 Simply direct them to this repository! They can:
 
-1. **Use pre-built releases** (easiest): Download from the [Releases page](https://github.com/dondenton/GitHubMenuBar/releases)
-2. **Build from source**: Clone the repository and follow the build instructions above
+1. **Use the installer** (easiest):
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/happycollision/GitHubMenuBar/main/install.sh | bash -s -- --yolo
+   ```
+2. **Use pre-built releases**: Download from the [Releases page](https://github.com/happycollision/GitHubMenuBar/releases)
+3. **Build from source**: Clone the repository and follow the build instructions above
 
 All users will need to have the GitHub CLI installed and authenticated.
 
