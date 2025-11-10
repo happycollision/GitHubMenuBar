@@ -86,21 +86,50 @@ jobs:
 
             ## Installation
 
+            ### Quick Install (Recommended)
+
+            **YOLO mode - full auto-install:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --yolo
+            ```
+
+            This will:
+            - Download and extract the latest release
+            - Remove quarantine attributes (unsigned app handling)
+            - Move to `/Applications` automatically
+            - Check for GitHub CLI and guide setup if needed
+
+            **Conservative mode - you handle the final steps:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+
+            This downloads and extracts only. You'll manually move to `/Applications` and handle first launch.
+
+            **Install specific version:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --version v${{ steps.get_version.outputs.version }} --yolo
+            ```
+
+            ### Manual Installation
+
             1. Download `GitHubMenuBar.zip` below
             2. Extract the ZIP file
             3. Move `GitHubMenuBar.app` to your Applications folder
             4. **First launch**: Right-click the app and select "Open" (required for unsigned apps)
 
-            ## Requirements
-            - macOS 13.0 (Ventura) or later
-            - GitHub CLI (`gh`) installed and authenticated
-
-            ## Bypassing Gatekeeper (unsigned app)
-            If you see "cannot be opened because the developer cannot be verified":
+            Or bypass Gatekeeper with:
             ```bash
             xattr -cr /Applications/GitHubMenuBar.app
             ```
-            Then try opening again.
+
+            ### Requirements
+            - macOS 13.0 (Ventura) or later
+            - GitHub CLI (`gh`) installed and authenticated
+              ```bash
+              brew install gh
+              gh auth login
+              ```
           files: |
             dist/GitHubMenuBar.zip
           draft: false
