@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Debug logs are automatically stripped from release builds for better performance
   - Logs can be filtered by subsystem and category in Console.app
   - Follows Apple's recommended best practices for macOS logging
+- Fix Swift Package Manager build warning about unhandled Assets.xcassets file
+  - Explicitly declare Assets.xcassets as a processed resource in Package.swift
 
 ## [0.4.0] - 2025-11-10
 
