@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Service layer for interacting with the GitHub CLI (`gh`).
 ///
@@ -13,6 +14,12 @@ import Foundation
 final class GitHubService: Sendable {
     /// Shared singleton instance
     static let shared = GitHubService()
+
+    /// Logger for GitHubService operations
+    private let logger = Logger(subsystem: "com.githubmenubar.app", category: "GitHubService")
+
+    /// Static logger for initialization-time operations
+    private static let initLogger = Logger(subsystem: "com.githubmenubar.app", category: "GitHubService.init")
 
     /// Cached shell environment loaded once at initialization
     /// This avoids the performance overhead of spawning a shell multiple times
@@ -31,8 +38,8 @@ final class GitHubService: Sendable {
         // Get the user's actual shell (e.g., /bin/bash, /bin/zsh, /usr/local/bin/fish)
         let userShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
 
-        print("DEBUG: Loading shell environment from: \(userShell)")
-        print("DEBUG: Current PATH before loading: \(ProcessInfo.processInfo.environment["PATH"] ?? "none")")
+        initLogger.debug("Loading shell environment from: \(userShell)")
+        initLogger.debug("Current PATH before loading: \(ProcessInfo.processInfo.environment["PATH"] ?? "none")")
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: userShell)
@@ -55,14 +62,14 @@ final class GitHubService: Sendable {
             if process.terminationStatus != 0 {
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorMessage = String(data: errorData, encoding: .utf8) ?? "unknown error"
-                print("DEBUG: Shell loading failed with status \(process.terminationStatus): \(errorMessage)")
+                initLogger.error("Shell loading failed with status \(process.terminationStatus): \(errorMessage)")
                 // Fallback to process environment if shell loading fails
                 return ProcessInfo.processInfo.environment
             }
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let output = String(data: data, encoding: .utf8) else {
-                print("DEBUG: Failed to decode shell output")
+                initLogger.error("Failed to decode shell output")
                 return ProcessInfo.processInfo.environment
             }
 
@@ -75,10 +82,10 @@ final class GitHubService: Sendable {
                 environment[key] = value
             }
 
-            print("DEBUG: Loaded PATH from shell: \(environment["PATH"] ?? "none")")
+            initLogger.debug("Loaded PATH from shell: \(environment["PATH"] ?? "none")")
             return environment
         } catch {
-            print("DEBUG: Exception loading shell environment: \(error)")
+            initLogger.error("Exception loading shell environment: \(error)")
             // Fallback to process environment if anything fails
             return ProcessInfo.processInfo.environment
         }
@@ -378,7 +385,7 @@ final class GitHubService: Sendable {
                 let result = try await executeQuery(searchQuery: draftQuery)
                 allPRs.append(contentsOf: result.pullRequests)
                 anyHasMore = anyHasMore || result.hasMore
-                print("DEBUG: Fetched \(result.pullRequests.count) draft PRs, hasMore: \(result.hasMore)")
+                logger.debug("Fetched \(result.pullRequests.count) draft PRs, hasMore: \(result.hasMore)")
 
                 // Check for cancellation between queries
                 try Task.checkCancellation()
@@ -390,7 +397,7 @@ final class GitHubService: Sendable {
                 let result = try await executeQuery(searchQuery: openQuery)
                 allPRs.append(contentsOf: result.pullRequests)
                 anyHasMore = anyHasMore || result.hasMore
-                print("DEBUG: Fetched \(result.pullRequests.count) open non-draft PRs, hasMore: \(result.hasMore)")
+                logger.debug("Fetched \(result.pullRequests.count) open non-draft PRs, hasMore: \(result.hasMore)")
 
                 // Check for cancellation between queries
                 try Task.checkCancellation()
@@ -402,7 +409,7 @@ final class GitHubService: Sendable {
                 let result = try await executeQuery(searchQuery: mergedQuery)
                 allPRs.append(contentsOf: result.pullRequests)
                 anyHasMore = anyHasMore || result.hasMore
-                print("DEBUG: Fetched \(result.pullRequests.count) merged PRs, hasMore: \(result.hasMore)")
+                logger.debug("Fetched \(result.pullRequests.count) merged PRs, hasMore: \(result.hasMore)")
 
                 // Check for cancellation between queries
                 try Task.checkCancellation()
@@ -414,7 +421,7 @@ final class GitHubService: Sendable {
                 let result = try await executeQuery(searchQuery: closedQuery)
                 allPRs.append(contentsOf: result.pullRequests)
                 anyHasMore = anyHasMore || result.hasMore
-                print("DEBUG: Fetched \(result.pullRequests.count) closed (unmerged) PRs, hasMore: \(result.hasMore)")
+                logger.debug("Fetched \(result.pullRequests.count) closed (unmerged) PRs, hasMore: \(result.hasMore)")
 
                 // Check for cancellation after final query
                 try Task.checkCancellation()
@@ -451,7 +458,7 @@ final class GitHubService: Sendable {
             // indicate that there are more PRs not being shown
             let hasMoreResults = anyHasMore || sorted.count > 50
 
-            print("DEBUG: Total PRs after deduplication, review filtering, and sorting: \(sorted.count), limited to: \(limited.count), hasMore: \(hasMoreResults)")
+            logger.debug("Total PRs after deduplication, review filtering, and sorting: \(sorted.count), limited to: \(limited.count), hasMore: \(hasMoreResults)")
             return (pullRequests: limited, hasMore: hasMoreResults)
         } catch is CancellationError {
             // Propagate cancellation error up

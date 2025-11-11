@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Environment is cached at startup for performance (avoids repeated shell spawns)
 
 ### Internal
+- Replace print statements with Swift's unified logging system (os.Logger)
+  - Uses proper log levels (.debug, .info, .error) instead of always-on print statements
+  - Debug logs are automatically stripped from release builds for better performance
+  - Logs can be filtered by subsystem and category in Console.app
+  - Follows Apple's recommended best practices for macOS logging
 
 ## [0.4.0] - 2025-11-10
 
