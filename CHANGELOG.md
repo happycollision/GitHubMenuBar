@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- Fix install.sh prompts not working when script is piped via curl
+  - Redirect `read` commands to `/dev/tty` to properly read user input when script is piped
+  - Fixes "Installation cancelled" message appearing without prompting user
 
 ### Internal
 

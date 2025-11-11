@@ -150,7 +150,7 @@ if [ "$LIST_VERSIONS" = false ]; then
     print_info "Install it with: brew install gh"
     print_info "Then authenticate with: gh auth login"
     echo ""
-    read -p "Continue installation anyway? [y/N] " -n 1 -r
+    read -p "Continue installation anyway? [y/N] " -n 1 -r < /dev/tty
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
       print_info "Installation cancelled"
@@ -317,7 +317,7 @@ if [ "$MOVE_TO_APPLICATIONS" = true ]; then
   # Check if app already exists in Applications
   if [ -d "$FINAL_APP_PATH" ]; then
     print_warning "${APP_NAME}.app already exists in Applications folder"
-    read -p "Replace it? [y/N] " -n 1 -r
+    read -p "Replace it? [y/N] " -n 1 -r < /dev/tty
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
       print_info "Installation cancelled"
