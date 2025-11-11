@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add `--overwrite [MODE]` flag to install.sh for controlling existing app replacement
+  - MODE can be: `yes` (auto-replace), `no` (cancel), `ask` (prompt, default)
+  - Enables automatic upgrades without user interaction when set to `yes`
+  - Included in `--yolo` mode for fully automated installations
 
 ### Changed
 - Remove confirmation prompt when GitHub CLI is not installed during installation

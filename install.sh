@@ -14,6 +14,7 @@ VERSION="latest"
 # Installation options
 REMOVE_QUARANTINE=false
 MOVE_TO_APPLICATIONS=false
+OVERWRITE_EXISTING="ask"  # Options: "yes", "no", "ask"
 LIST_VERSIONS=false
 TEMP_DIR=""
 
@@ -35,9 +36,14 @@ while [[ $# -gt 0 ]]; do
       MOVE_TO_APPLICATIONS=true
       shift
       ;;
+    --overwrite)
+      OVERWRITE_EXISTING="${2:-yes}"
+      shift 2
+      ;;
     --yolo)
       REMOVE_QUARANTINE=true
       MOVE_TO_APPLICATIONS=true
+      OVERWRITE_EXISTING="yes"
       shift
       ;;
     --list-versions)
@@ -64,14 +70,17 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
-      echo "  --version VERSION         Install specific version (default: latest)"
-      echo "                            VERSION can look like: 'latest', '0.3.0', or 'v0.3.0'"
-      echo "  --remove-quarantine       Remove quarantine attributes (allows app to launch without right-click)"
-      echo "                            Note: Strict Gatekeeper settings may require manual xattr -cr instead"
-      echo "  --move-to-applications    Move app to /Applications folder"
-      echo "  --yolo                    Full auto install (enables --remove-quarantine and --move-to-applications)"
-      echo "  --list-versions           List available versions and release URLs (no installation)"
-      echo "  --help                    Show this help message"
+      echo "  --version VERSION           Install specific version (default: latest)"
+      echo "                              VERSION can look like: 'latest', '0.3.0', or 'v0.3.0'"
+      echo "  --remove-quarantine         Remove quarantine attributes (allows app to launch without right-click)"
+      echo "                              Note: Strict Gatekeeper settings may require manual xattr -cr instead"
+      echo "  --move-to-applications      Move app to /Applications folder"
+      echo "  --overwrite [MODE]          Control existing app replacement behavior"
+      echo "                              MODE can be: yes (auto-replace), no (cancel), ask (prompt)"
+      echo "                              Default without flag: ask | Default with flag but no MODE: yes"
+      echo "  --yolo                      Full auto install (--remove-quarantine --move-to-applications --overwrite yes)"
+      echo "  --list-versions             List available versions and release URLs (no installation)"
+      echo "  --help                      Show this help message"
       echo ""
       echo "Examples:"
       echo "  # YOLO mode - full auto install"
@@ -79,6 +88,9 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "  # Full installation (explicit flags)"
       echo "  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash -s -- --remove-quarantine --move-to-applications"
+      echo ""
+      echo "  # Auto-upgrade existing installation"
+      echo "  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash -s -- --overwrite yes --move-to-applications"
       echo ""
       echo "  # Download and extract only (you handle the rest)"
       echo "  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash"
@@ -306,14 +318,27 @@ if [ "$MOVE_TO_APPLICATIONS" = true ]; then
   # Check if app already exists in Applications
   if [ -d "$FINAL_APP_PATH" ]; then
     print_warning "${APP_NAME}.app already exists in Applications folder"
-    read -p "Replace it? [y/N] " -n 1 -r < /dev/tty
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-      print_info "Installation cancelled"
+
+    # Handle based on OVERWRITE_EXISTING setting
+    if [ "$OVERWRITE_EXISTING" = "yes" ]; then
+      print_info "Automatically replacing existing app..."
+    elif [ "$OVERWRITE_EXISTING" = "no" ]; then
+      print_info "Installation cancelled (overwrite disabled)"
       print_info "Extracted app location: $APP_PATH"
       TEMP_DIR=""  # Don't cleanup so user can access the app
       exit 0
+    else
+      # OVERWRITE_EXISTING = "ask" (default)
+      read -p "Replace it? [y/N] " -n 1 -r < /dev/tty
+      echo ""
+      if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Installation cancelled"
+        print_info "Extracted app location: $APP_PATH"
+        TEMP_DIR=""  # Don't cleanup so user can access the app
+        exit 0
+      fi
     fi
+
     print_info "Removing existing app..."
     rm -rf "$FINAL_APP_PATH"
   fi
