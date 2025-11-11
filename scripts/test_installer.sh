@@ -28,17 +28,6 @@ if [ ! -f "$INSTALLER_PATH" ]; then
   exit 1
 fi
 
-echo ""
-echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║${NC}   Installer Test Suite                ${BLUE}║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
-echo ""
-
-# Check if GITHUB_TOKEN is available (CI environment)
-if [ -n "$GITHUB_TOKEN" ]; then
-  print_info "Running in CI with authenticated GitHub API access"
-fi
-
 # Helper functions
 print_test() {
   echo ""
@@ -59,6 +48,17 @@ print_fail() {
 print_info() {
   echo -e "${BLUE}ℹ${NC} $1"
 }
+
+echo ""
+echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║${NC}   Installer Test Suite                ${BLUE}║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
+echo ""
+
+# Check if GITHUB_TOKEN is available (CI environment)
+if [ -n "$GITHUB_TOKEN" ]; then
+  print_info "Running in CI with authenticated GitHub API access"
+fi
 
 # Test 1: --help flag
 print_test "Help flag displays usage"

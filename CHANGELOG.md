@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Internal
+
+## [0.5.0] - 2025-11-11
+
+### Fixed
 - Fix "gh not found" error when app is launched from Finder or login items on macOS
   - macOS GUI apps don't inherit user's shell PATH by default (only get `/usr/bin:/bin:/usr/sbin:/sbin`)
   - App now loads user's shell environment at startup to find `gh` in Homebrew locations
@@ -26,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Follows Apple's recommended best practices for macOS logging
 - Fix Swift Package Manager build warning about unhandled Assets.xcassets file
   - Explicitly declare Assets.xcassets as a processed resource in Package.swift
+  - Add required Contents.json metadata files for Assets.xcassets
+- Fix installer test script function definition order bug
 
 ## [0.4.0] - 2025-11-10
 
