@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Internal
+
+## [0.5.1] - 2025-11-11
+
+### Added
 - Add `--overwrite [MODE]` flag to install.sh for controlling existing app replacement
   - MODE can be: `yes` (auto-replace), `no` (cancel), `ask` (prompt, default)
   - Enables automatic upgrades without user interaction when set to `yes`
@@ -22,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix install.sh prompts not working when script is piped via curl
   - Redirect `read` commands to `/dev/tty` to properly read user input when script is piped
   - Fixes "Installation cancelled" message appearing without prompting user
-
-### Internal
 
 ## [0.5.0] - 2025-11-11
 
