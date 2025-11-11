@@ -146,16 +146,6 @@ if [ "$LIST_VERSIONS" = false ]; then
   # Check for GitHub CLI
   if ! command -v gh &> /dev/null; then
     print_warning "GitHub CLI (gh) is not installed"
-    print_info "GitHubMenuBar requires the GitHub CLI to function"
-    print_info "Install it with: brew install gh"
-    print_info "Then authenticate with: gh auth login"
-    echo ""
-    read -p "Continue installation anyway? [y/N] " -n 1 -r < /dev/tty
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-      print_info "Installation cancelled"
-      exit 0
-    fi
   else
     print_success "GitHub CLI is installed"
 
@@ -164,7 +154,6 @@ if [ "$LIST_VERSIONS" = false ]; then
       print_success "GitHub CLI is authenticated"
     else
       print_warning "GitHub CLI is not authenticated"
-      print_info "Run 'gh auth login' after installation"
     fi
   fi
 fi
@@ -381,10 +370,14 @@ else
 fi
 echo ""
 
-# Check if gh is installed and authenticated
-if ! command -v gh &> /dev/null || ! gh auth status &> /dev/null; then
-  print_warning "Don't forget to set up GitHub CLI:"
+# Check if gh is installed and authenticated - show next steps if needed
+if ! command -v gh &> /dev/null; then
+  print_info "Next steps - Install and authenticate GitHub CLI:"
   echo "  brew install gh"
+  echo "  gh auth login"
+  echo ""
+elif ! gh auth status &> /dev/null; then
+  print_info "Next steps - Authenticate GitHub CLI:"
   echo "  gh auth login"
   echo ""
 fi

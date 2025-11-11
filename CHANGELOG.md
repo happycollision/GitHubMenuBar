@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- Remove confirmation prompt when GitHub CLI is not installed during installation
+  - Installer now shows GitHub CLI setup as "Next steps" after installation completes
+  - Provides smoother installation experience without interruptions
 
 ### Fixed
 - Fix install.sh prompts not working when script is piped via curl
