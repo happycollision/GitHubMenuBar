@@ -24,9 +24,7 @@ jobs:
           echo "Building version: ${VERSION}"
 
       - name: Build release
-        run: |
-          chmod +x scripts/build_release.sh
-          ./scripts/build_release.sh
+        run: ./scripts/build_release.sh
 
       - name: Generate release notes
         id: release_notes
