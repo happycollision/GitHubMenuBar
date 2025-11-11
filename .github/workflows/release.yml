@@ -24,7 +24,7 @@ jobs:
           echo "Building version: ${VERSION}"
 
       - name: Run tests
-        run: ./scripts/run_tests.sh
+        run: swift test  # Skip installer tests in release workflow (they query GitHub API which may be rate-limited)
 
       - name: Build release
         run: ./scripts/build_release.sh
