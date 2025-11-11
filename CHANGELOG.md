@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- Fix "gh not found" error when app is launched from Finder or login items on macOS
+  - macOS GUI apps don't inherit user's shell PATH by default (only get `/usr/bin:/bin:/usr/sbin:/sbin`)
+  - App now loads user's shell environment at startup to find `gh` in Homebrew locations
+  - Works on both Intel (`/usr/local/bin`) and Apple Silicon (`/opt/homebrew/bin`) Macs
+  - Environment is cached at startup for performance (avoids repeated shell spawns)
 
 ### Internal
 

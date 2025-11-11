@@ -821,6 +821,10 @@ struct SettingsView: View {
 
 // MARK: - Preview
 
-#Preview {
-    SettingsView()
+#if DEBUG
+struct SettingsView_Previews: PreviewProvider {
+    static var previews: some View {
+        SettingsView()
+    }
 }
+#endif

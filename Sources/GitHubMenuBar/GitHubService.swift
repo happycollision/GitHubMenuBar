@@ -14,7 +14,75 @@ final class GitHubService: Sendable {
     /// Shared singleton instance
     static let shared = GitHubService()
 
-    private init() {}
+    /// Cached shell environment loaded once at initialization
+    /// This avoids the performance overhead of spawning a shell multiple times
+    private let cachedEnvironment: [String: String]
+
+    private init() {
+        // Load shell environment once at initialization
+        self.cachedEnvironment = Self.loadShellEnvironment()
+    }
+
+    /// Loads the user's shell environment to get the correct PATH.
+    /// This is necessary because macOS GUI apps don't inherit the user's shell PATH by default.
+    ///
+    /// - Returns: Dictionary of environment variables from the user's shell
+    private static func loadShellEnvironment() -> [String: String] {
+        // Get the user's actual shell (e.g., /bin/bash, /bin/zsh, /usr/local/bin/fish)
+        let userShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+
+        print("DEBUG: Loading shell environment from: \(userShell)")
+        print("DEBUG: Current PATH before loading: \(ProcessInfo.processInfo.environment["PATH"] ?? "none")")
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: userShell)
+
+        // Run an interactive login shell to source all profile files, then print the environment
+        // -i: interactive (sources rc files like .zshrc)
+        // -l: login (sources profile files like .zprofile)
+        // -c: command to execute
+        process.arguments = ["-i", "-l", "-c", "env"]
+
+        let pipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = errorPipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            if process.terminationStatus != 0 {
+                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                let errorMessage = String(data: errorData, encoding: .utf8) ?? "unknown error"
+                print("DEBUG: Shell loading failed with status \(process.terminationStatus): \(errorMessage)")
+                // Fallback to process environment if shell loading fails
+                return ProcessInfo.processInfo.environment
+            }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            guard let output = String(data: data, encoding: .utf8) else {
+                print("DEBUG: Failed to decode shell output")
+                return ProcessInfo.processInfo.environment
+            }
+
+            // Parse the env output into a dictionary
+            var environment = ProcessInfo.processInfo.environment
+            for line in output.components(separatedBy: .newlines) {
+                guard let separatorIndex = line.firstIndex(of: "=") else { continue }
+                let key = String(line[..<separatorIndex])
+                let value = String(line[line.index(after: separatorIndex)...])
+                environment[key] = value
+            }
+
+            print("DEBUG: Loaded PATH from shell: \(environment["PATH"] ?? "none")")
+            return environment
+        } catch {
+            print("DEBUG: Exception loading shell environment: \(error)")
+            // Fallback to process environment if anything fails
+            return ProcessInfo.processInfo.environment
+        }
+    }
 
     /// Checks if the GitHub CLI (`gh`) is installed on the system.
     ///
@@ -23,6 +91,7 @@ final class GitHubService: Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
         process.arguments = ["gh"]
+        process.environment = cachedEnvironment
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -42,6 +111,7 @@ final class GitHubService: Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["gh", "auth", "status"]
+        process.environment = cachedEnvironment
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -104,6 +174,7 @@ final class GitHubService: Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["gh", "api", "graphql", "-f", "query=\(graphqlQuery)"]
+        process.environment = cachedEnvironment
 
         let pipe = Pipe()
         process.standardOutput = pipe
