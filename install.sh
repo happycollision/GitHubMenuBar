@@ -16,6 +16,7 @@ REMOVE_QUARANTINE=false
 MOVE_TO_APPLICATIONS=false
 OVERWRITE_EXISTING="ask"  # Options: "yes", "no", "ask"
 LIST_VERSIONS=false
+GITHUB_TOKEN_ENV_VAR=""
 TEMP_DIR=""
 
 # Colors for output
@@ -50,6 +51,10 @@ while [[ $# -gt 0 ]]; do
       LIST_VERSIONS=true
       shift
       ;;
+    --use-github-token-via-env-var=*)
+      GITHUB_TOKEN_ENV_VAR="${1#*=}"
+      shift
+      ;;
     --version)
       # Normalize version: allow "latest" or version with/without "v" prefix
       if [ "$2" = "latest" ]; then
@@ -80,6 +85,11 @@ while [[ $# -gt 0 ]]; do
       echo "                              Default without flag: ask | Default with flag but no MODE: yes"
       echo "  --yolo                      Full auto install (--remove-quarantine --move-to-applications --overwrite yes)"
       echo "  --list-versions             List available versions and release URLs (no installation)"
+      echo "  --use-github-token-via-env-var=VAR_NAME"
+      echo "                              Use token from specified env var for authenticated API calls"
+      echo "                              Primarily for CI/testing to avoid rate limiting (60 → 5000 req/hr)"
+      echo "                              End users typically don't need this option"
+      echo "                              Example: --use-github-token-via-env-var=GITHUB_TOKEN"
       echo "  --help                      Show this help message"
       echo ""
       echo "Examples:"
@@ -125,6 +135,31 @@ print_warning() {
 
 print_error() {
   echo -e "${RED}✗${NC} $1"
+}
+
+# Validate GitHub token if flag was provided
+# This validation happens early, before any API calls, to fail fast with a clear error message
+if [ -n "$GITHUB_TOKEN_ENV_VAR" ]; then
+  token_value="${!GITHUB_TOKEN_ENV_VAR}"
+  if [ -z "$token_value" ]; then
+    print_error "Flag --use-github-token-via-env-var=${GITHUB_TOKEN_ENV_VAR} was provided, but \$${GITHUB_TOKEN_ENV_VAR} is not set or is empty"
+    exit 1
+  fi
+fi
+
+# Function to make authenticated GitHub API calls
+# Uses token from environment variable specified via --use-github-token-via-env-var flag.
+# GitHub API rate limits: 60 requests/hour (unauthenticated) vs 5000 requests/hour (authenticated)
+# This is essential for CI environments where multiple API calls may hit the lower limit.
+# Token is validated upfront before any API calls, so we can safely use it here.
+github_api_curl() {
+  local url="$1"
+  if [ -n "$GITHUB_TOKEN_ENV_VAR" ]; then
+    local token="${!GITHUB_TOKEN_ENV_VAR}"
+    curl -fsSL -H "Authorization: Bearer $token" "$url"
+  else
+    curl -fsSL "$url"
+  fi
 }
 
 # Function to cleanup on exit
@@ -176,7 +211,7 @@ if [ "$LIST_VERSIONS" = false ]; then
 fi
 
 # Always fetch the actual latest version for comparison
-LATEST_VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
+LATEST_VERSION=$(github_api_curl "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
 
 if [ "$VERSION" = "latest" ]; then
   DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${APP_NAME}.zip"
@@ -203,7 +238,7 @@ if [ "$LIST_VERSIONS" = true ]; then
   if [ "$VERSION" = "latest" ]; then
     # Fetch all releases (sorted oldest to newest)
     print_info "Fetching all available releases..."
-    ALL_RELEASES=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases" | grep '"tag_name"' | cut -d'"' -f4 | tail -r)
+    ALL_RELEASES=$(github_api_curl "https://api.github.com/repos/${REPO}/releases" | grep '"tag_name"' | cut -d'"' -f4 | tail -r)
 
     if [ -z "$ALL_RELEASES" ]; then
       print_warning "Could not fetch releases list"
@@ -230,7 +265,7 @@ if [ "$LIST_VERSIONS" = true ]; then
   else
     # Specific version requested - validate it exists
     print_info "Validating version ${ACTUAL_VERSION}..."
-    ALL_RELEASES=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases" | grep '"tag_name"' | cut -d'"' -f4)
+    ALL_RELEASES=$(github_api_curl "https://api.github.com/repos/${REPO}/releases" | grep '"tag_name"' | cut -d'"' -f4)
 
     if echo "$ALL_RELEASES" | grep -q "^${ACTUAL_VERSION}$"; then
       print_success "Version ${ACTUAL_VERSION} found!"

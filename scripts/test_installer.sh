@@ -55,9 +55,11 @@ echo -e "${BLUE}║${NC}   Installer Test Suite                ${BLUE}║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
 echo ""
 
-# Check if GITHUB_TOKEN is available (CI environment)
-if [ -n "$GITHUB_TOKEN" ]; then
+# Check if running in CI environment and set flag accordingly
+INSTALLER_FLAGS=""
+if [ "$CI" = "true" ]; then
   print_info "Running in CI with authenticated GitHub API access"
+  INSTALLER_FLAGS="--use-github-token-via-env-var=GITHUB_TOKEN"
 fi
 
 # Test 1: --help flag
@@ -75,7 +77,7 @@ fi
 
 # Test 2: --list-versions with no version specified
 print_test "List versions (no specific version)"
-OUTPUT=$(bash "$INSTALLER_PATH" --list-versions 2>&1) || true
+OUTPUT=$(bash "$INSTALLER_PATH" --list-versions $INSTALLER_FLAGS 2>&1) || true
 # Save this output for reuse in later tests to avoid API rate limits
 ALL_VERSIONS_OUTPUT="$OUTPUT"
 if echo "$OUTPUT" | grep -q "Available versions" && \
@@ -103,7 +105,7 @@ fi
 
 # Test 4: --list-versions with specific valid version (v prefix)
 print_test "List versions with specific version (v0.3.0)"
-OUTPUT=$(bash "$INSTALLER_PATH" --list-versions --version v0.3.0 2>&1) || true
+OUTPUT=$(bash "$INSTALLER_PATH" --list-versions --version v0.3.0 $INSTALLER_FLAGS 2>&1) || true
 SPECIFIC_VERSION_OUTPUT="$OUTPUT"
 if echo "$OUTPUT" | grep -q "Validating version v0.3.0" && \
    echo "$OUTPUT" | grep -q "Version v0.3.0 found!" && \
@@ -130,7 +132,7 @@ fi
 # Test 6: --list-versions with invalid version
 print_test "List versions with invalid version (v99.99.99)"
 set +e  # Temporarily disable exit on error
-OUTPUT=$(bash "$INSTALLER_PATH" --list-versions --version v99.99.99 2>&1)
+OUTPUT=$(bash "$INSTALLER_PATH" --list-versions --version v99.99.99 $INSTALLER_FLAGS 2>&1)
 EXIT_CODE=$?
 set -e  # Re-enable exit on error
 if [ $EXIT_CODE -ne 0 ] && \

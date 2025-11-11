@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 ### Internal
+- Fix installer script tests failing in CI due to GitHub API rate limiting
+  - Add `--use-github-token-via-env-var=VAR_NAME` flag for explicit token usage
+  - Add `github_api_curl()` helper function for authenticated GitHub API calls
+  - Prevents 403 errors by using authenticated API calls (5000 req/hr vs 60 req/hr limit)
+  - Token usage is opt-in only via explicit flag - never uses tokens implicitly
+  - Ensures reliable CI test execution while maintaining backward compatibility
 
 ## [0.5.1] - 2025-11-11
 
