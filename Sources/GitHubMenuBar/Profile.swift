@@ -36,7 +36,6 @@ struct Profile: Codable {
 struct ProfileSettings: Codable {
     var excludedStatuses: [String]  // Store as array for JSON
     var excludedReviewDecisions: [String]  // Store as array for JSON
-    var refreshIntervalMinutes: Int
     var repoFilterEnabled: Bool
     var repoFilterMode: String
     var whitelistedRepositories: [String]
@@ -49,7 +48,6 @@ struct ProfileSettings: Codable {
     init(
         excludedStatuses: [String] = ["MERGED", "CLOSED"],
         excludedReviewDecisions: [String] = [],
-        refreshIntervalMinutes: Int = 15,
         repoFilterEnabled: Bool = false,
         repoFilterMode: String = "blacklist",
         whitelistedRepositories: [String] = [],
@@ -61,7 +59,6 @@ struct ProfileSettings: Codable {
     ) {
         self.excludedStatuses = excludedStatuses
         self.excludedReviewDecisions = excludedReviewDecisions
-        self.refreshIntervalMinutes = refreshIntervalMinutes
         self.repoFilterEnabled = repoFilterEnabled
         self.repoFilterMode = repoFilterMode
         self.whitelistedRepositories = whitelistedRepositories
@@ -75,8 +72,7 @@ struct ProfileSettings: Codable {
     /// Custom equality comparison that ignores array ordering
     /// Arrays are compared as sets since they come from Set<String> conversions
     static func == (lhs: ProfileSettings, rhs: ProfileSettings) -> Bool {
-        return lhs.refreshIntervalMinutes == rhs.refreshIntervalMinutes &&
-               lhs.repoFilterEnabled == rhs.repoFilterEnabled &&
+        return lhs.repoFilterEnabled == rhs.repoFilterEnabled &&
                lhs.repoFilterMode == rhs.repoFilterMode &&
                lhs.authorFilterEnabled == rhs.authorFilterEnabled &&
                lhs.authorFilterMode == rhs.authorFilterMode &&

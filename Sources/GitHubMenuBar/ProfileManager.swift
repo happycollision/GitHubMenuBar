@@ -441,9 +441,8 @@ class ProfileManager: ObservableObject {
                 continue
             }
 
-            // Validate and clamp settings
-            var validatedSettings = profile.settings
-            validatedSettings.refreshIntervalMinutes = max(1, min(60, validatedSettings.refreshIntervalMinutes))
+            // Use profile settings as-is (validation for global settings is handled elsewhere)
+            let validatedSettings = profile.settings
 
             // Check for conflict
             if container.profiles[name] != nil {
