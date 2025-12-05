@@ -76,6 +76,32 @@ else
     echo "⚠️  Warning: ${ICON_PNG} not found, skipping icon generation"
 fi
 
+# Compile Liquid Glass icon bundle for macOS Tahoe
+LIQUID_ICON="icons/GithubMenuBar.icon"
+if [ -d "${LIQUID_ICON}" ]; then
+    echo "🎨 Compiling Liquid Glass icon..."
+    if xcrun --find actool > /dev/null 2>&1; then
+        xcrun actool "${LIQUID_ICON}" \
+            --app-icon GithubMenuBar \
+            --compile "${APP_BUNDLE}/Contents/Resources" \
+            --platform macosx \
+            --target-device mac \
+            --minimum-deployment-target 13.0 \
+            --output-partial-info-plist /dev/null 2>&1 | grep -v "^$" || true
+        if [ -f "${APP_BUNDLE}/Contents/Resources/Assets.car" ]; then
+            echo "✅ Liquid Glass icon compiled successfully"
+        else
+            echo "⚠️  Warning: actool ran but Assets.car not found, copying bundle as fallback"
+            cp -R "${LIQUID_ICON}" "${APP_BUNDLE}/Contents/Resources/"
+        fi
+    else
+        echo "⚠️  Warning: actool not found (Xcode required), copying raw bundle as fallback"
+        cp -R "${LIQUID_ICON}" "${APP_BUNDLE}/Contents/Resources/"
+    fi
+else
+    echo "⚠️  Warning: ${LIQUID_ICON} not found, skipping Liquid Glass icon"
+fi
+
 # Create PkgInfo file (optional but traditional)
 echo "APPL????" > "${APP_BUNDLE}/Contents/PkgInfo"
 
