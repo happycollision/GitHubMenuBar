@@ -235,7 +235,9 @@ struct ProfileManagementBar: View {
 
 // MARK: - Preview
 
+#if DEBUG && canImport(PreviewsMacros)
 #Preview {
     ProfileManagementBar()
         .frame(width: 450)
 }
+#endif

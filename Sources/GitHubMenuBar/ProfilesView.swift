@@ -304,7 +304,9 @@ struct ProfilesView: View {
 
 // MARK: - Preview
 
+#if DEBUG && canImport(PreviewsMacros)
 #Preview {
     ProfilesView()
         .frame(width: 450, height: 500)
 }
+#endif
