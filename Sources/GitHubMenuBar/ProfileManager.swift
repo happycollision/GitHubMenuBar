@@ -47,6 +47,8 @@ class ProfileManager: ObservableObject {
 
     /// Creates and returns the hardcoded Default profile
     /// This profile is never stored in JSON and is always available
+    /// Note: groupByRepo, reverseClickBehavior, and refreshIntervalMinutes are global settings,
+    /// not stored in profiles.
     static func createDefaultProfile() -> Profile {
         Profile(
             name: "Default",
@@ -56,8 +58,6 @@ class ProfileManager: ObservableObject {
             settings: ProfileSettings(
                 excludedStatuses: ["MERGED", "CLOSED"],
                 excludedReviewDecisions: [],
-                refreshIntervalMinutes: 15,
-                groupByRepo: true,
                 repoFilterEnabled: false,
                 repoFilterMode: "blacklist",
                 whitelistedRepositories: [],

@@ -442,13 +442,12 @@ class AppSettings: ObservableObject {
     // MARK: - Profile Integration
 
     /// Create a snapshot of current settings for profile storage
+    /// Note: groupByRepo, reverseClickBehavior, and refreshIntervalMinutes are global settings
+    /// and are NOT included in profiles.
     func createSnapshot() -> ProfileSettings {
         return ProfileSettings(
             excludedStatuses: Array(excludedStatuses.map { $0.rawValue }).sorted(),
             excludedReviewDecisions: Array(excludedReviewDecisions.map { $0.rawValue }).sorted(),
-            refreshIntervalMinutes: refreshIntervalMinutes,
-            groupByRepo: groupByRepo,
-            reverseClickBehavior: reverseClickBehavior,
             repoFilterEnabled: repoFilterEnabled,
             repoFilterMode: repoFilterMode.rawValue,
             whitelistedRepositories: Array(whitelistedRepositories).sorted(),
@@ -461,13 +460,12 @@ class AppSettings: ObservableObject {
     }
 
     /// Apply a profile snapshot to current settings
+    /// Note: groupByRepo, reverseClickBehavior, and refreshIntervalMinutes are global settings
+    /// and are NOT applied from profiles.
     func applySnapshot(_ settings: ProfileSettings, silent: Bool = false) {
-        // Update all settings - write directly to UserDefaults
+        // Update profile-managed settings - write directly to UserDefaults
         defaults.set(settings.excludedStatuses, forKey: excludedStatusesKey)
         defaults.set(settings.excludedReviewDecisions, forKey: excludedReviewDecisionsKey)
-        defaults.set(settings.refreshIntervalMinutes, forKey: refreshIntervalKey)
-        defaults.set(settings.groupByRepo, forKey: groupByRepoKey)
-        defaults.set(settings.reverseClickBehavior, forKey: reverseClickBehaviorKey)
         defaults.set(settings.repoFilterEnabled, forKey: repoFilterEnabledKey)
         defaults.set(settings.repoFilterMode, forKey: repoFilterModeKey)
         defaults.set(settings.whitelistedRepositories, forKey: whitelistedRepositoriesKey)

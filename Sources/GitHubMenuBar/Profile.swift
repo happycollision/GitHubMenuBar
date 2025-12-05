@@ -31,12 +31,13 @@ struct Profile: Codable {
 }
 
 /// Settings stored in a profile (matches AppSettings properties)
+/// Note: Some settings like groupByRepo, reverseClickBehavior, and refreshIntervalMinutes
+/// are intentionally NOT included here as they are global settings, not per-profile.
 struct ProfileSettings: Codable {
     var excludedStatuses: [String]  // Store as array for JSON
     var excludedReviewDecisions: [String]  // Store as array for JSON
-    var refreshIntervalMinutes: Int
-    var groupByRepo: Bool
     var reverseClickBehavior: Bool
+    var refreshIntervalMinutes: Int
     var repoFilterEnabled: Bool
     var repoFilterMode: String
     var whitelistedRepositories: [String]
@@ -49,9 +50,8 @@ struct ProfileSettings: Codable {
     init(
         excludedStatuses: [String] = ["MERGED", "CLOSED"],
         excludedReviewDecisions: [String] = [],
-        refreshIntervalMinutes: Int = 15,
-        groupByRepo: Bool = true,
         reverseClickBehavior: Bool = false,
+        refreshIntervalMinutes: Int = 15,
         repoFilterEnabled: Bool = false,
         repoFilterMode: String = "blacklist",
         whitelistedRepositories: [String] = [],
@@ -63,9 +63,8 @@ struct ProfileSettings: Codable {
     ) {
         self.excludedStatuses = excludedStatuses
         self.excludedReviewDecisions = excludedReviewDecisions
-        self.refreshIntervalMinutes = refreshIntervalMinutes
-        self.groupByRepo = groupByRepo
         self.reverseClickBehavior = reverseClickBehavior
+        self.refreshIntervalMinutes = refreshIntervalMinutes
         self.repoFilterEnabled = repoFilterEnabled
         self.repoFilterMode = repoFilterMode
         self.whitelistedRepositories = whitelistedRepositories
@@ -79,9 +78,8 @@ struct ProfileSettings: Codable {
     /// Custom equality comparison that ignores array ordering
     /// Arrays are compared as sets since they come from Set<String> conversions
     static func == (lhs: ProfileSettings, rhs: ProfileSettings) -> Bool {
-        return lhs.refreshIntervalMinutes == rhs.refreshIntervalMinutes &&
-               lhs.groupByRepo == rhs.groupByRepo &&
-               lhs.reverseClickBehavior == rhs.reverseClickBehavior &&
+        return lhs.reverseClickBehavior == rhs.reverseClickBehavior &&
+               lhs.refreshIntervalMinutes == rhs.refreshIntervalMinutes &&
                lhs.repoFilterEnabled == rhs.repoFilterEnabled &&
                lhs.repoFilterMode == rhs.repoFilterMode &&
                lhs.authorFilterEnabled == rhs.authorFilterEnabled &&
