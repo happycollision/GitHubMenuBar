@@ -8,11 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Internal
+
+## [0.6.0] - 2025-12-05
+
+### Added
 - Add macOS Tahoe Liquid Glass icon support
   - Compiles `.icon` bundle using `actool` for native Liquid Glass rendering
   - Falls back gracefully when Xcode is not available
-
-### Changed
 
 ### Fixed
 - Fix `#Preview` macros breaking builds without full Xcode installation
