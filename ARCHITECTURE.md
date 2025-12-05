@@ -98,6 +98,7 @@ GitHubMenuBar/
 │   ├── MenuBarController.swift       # Menu bar UI and logic
 │   ├── SettingsView.swift            # Settings window with tabs
 │   ├── SettingsWindowController.swift # NSWindowController for settings
+│   ├── LoginItemManager.swift        # Launch at login via SMAppService
 │   ├── ProfileManagementBar.swift    # Profile management UI component
 │   └── ProfilesView.swift            # Advanced profile management tab
 ├── Package.swift                     # Swift Package Manager configuration
@@ -196,6 +197,23 @@ GitHubMenuBar/
   - Creates NSWindow with SwiftUI hosting view
   - Manages window lifecycle (show, close, focus)
   - Prevents multiple windows from opening
+
+### LoginItemManager.swift
+- **Responsibility**: Manage launch at login state via SMAppService
+- **Key features**:
+  - Singleton pattern (`LoginItemManager.shared`)
+  - @MainActor for thread safety
+  - Uses modern SMAppService API (macOS 13+)
+  - No UserDefaults storage - queries system directly for accuracy
+  - Stays in sync if user changes login items via System Settings
+- **Properties**:
+  - `isEnabled`: Bool - whether app is registered to launch at login
+  - `statusDescription`: String - human-readable status for debugging
+- **Methods**:
+  - `setEnabled(_ enabled: Bool) throws`: Register/unregister login item
+- **Design Decision**: Not part of profiles system
+  - Launch at login is an app-level setting, not a filter preference
+  - Should persist regardless of which profile is active
 
 ### ProfileManagementBar.swift
 - **Responsibility**: Profile management controls in settings window

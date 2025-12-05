@@ -185,6 +185,11 @@ struct SettingsView: View {
     @State private var authorListText: String = ""
     @State private var authorSaveError: String? = nil
 
+    /// Launch at login setting
+    @State private var launchAtLogin: Bool
+    @State private var showLaunchAtLoginError: Bool = false
+    @State private var launchAtLoginError: String? = nil
+
     /// Callback to trigger refresh when settings change
     var onSettingsChanged: (() -> Void)?
 
@@ -257,6 +262,9 @@ struct SettingsView: View {
             ? Array(AppSettings.shared.blacklistedAuthors).sorted()
             : Array(AppSettings.shared.whitelistedAuthors).sorted()
         _authorListText = State(initialValue: currentAuthors.joined(separator: "\n"))
+
+        // Initialize launch at login from system state
+        _launchAtLogin = State(initialValue: LoginItemManager.shared.isEnabled)
     }
 
     // MARK: - Body
@@ -440,6 +448,18 @@ struct SettingsView: View {
                         Text("When enabled, regular click copies URL and ⌘-click opens in browser.\nWhen disabled (default), regular click opens in browser and ⌘-click copies URL.")
                             .font(.caption)
                             .foregroundColor(.secondary)
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        Toggle("Launch at Login", isOn: $launchAtLogin)
+                            .onChange(of: launchAtLogin) { newValue in
+                                updateLaunchAtLogin(newValue: newValue)
+                            }
+
+                        Text("Automatically start GitHub Menu Bar when you log in to your Mac.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
 
                     Divider()
@@ -609,6 +629,14 @@ struct SettingsView: View {
             // Reload state from AppSettings when profile is switched/reverted
             reloadSettingsFromAppSettings()
         }
+        .alert("Launch at Login Failed", isPresented: $showLaunchAtLoginError) {
+            Button("Open System Settings") {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")!)
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(launchAtLoginError ?? "Failed to change launch at login setting.")
+        }
     }
 
     // MARK: - Helper Methods
@@ -661,6 +689,9 @@ struct SettingsView: View {
             ? Array(AppSettings.shared.blacklistedAuthors).sorted()
             : Array(AppSettings.shared.whitelistedAuthors).sorted()
         authorListText = currentAuthors.joined(separator: "\n")
+
+        // Reload launch at login from system state (not part of profiles)
+        launchAtLogin = LoginItemManager.shared.isEnabled
     }
 
     /// Updates AppSettings and triggers refresh
@@ -723,6 +754,22 @@ struct SettingsView: View {
         if newValue != AppSettings.shared.reverseClickBehavior {
             AppSettings.shared.reverseClickBehavior = newValue
             // No need to trigger refresh - this is purely a UI interaction setting
+        }
+    }
+
+    /// Updates the launch at login setting
+    private func updateLaunchAtLogin(newValue: Bool) {
+        do {
+            try LoginItemManager.shared.setEnabled(newValue)
+        } catch {
+            // Revert the toggle to the actual state
+            launchAtLogin = LoginItemManager.shared.isEnabled
+
+            // Show error to user
+            launchAtLoginError = "Could not \(newValue ? "enable" : "disable") launch at login. You may need to allow this in System Settings > General > Login Items."
+            showLaunchAtLoginError = true
+
+            print("[SettingsView] Failed to set launch at login: \(error.localizedDescription)")
         }
     }
 
