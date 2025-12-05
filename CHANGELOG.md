@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - "Group by Repository" setting is now global and no longer saved per-profile
+- "Reverse Click Behavior" setting is now global and no longer saved per-profile
 
 ### Fixed
 
