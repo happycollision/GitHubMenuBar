@@ -271,26 +271,98 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Profile Management Bar (above tabs)
-            ProfileManagementBar(onSettingsChanged: onSettingsChanged)
-
-            // Existing TabView
+            // TabView with General, Filtering, and Profiles tabs
             TabView {
-            // MARK: - General Tab
+            // MARK: - General Tab (global settings, not per-profile)
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Header
-                    Text("Filter Pull Requests")
-                        .font(.headline)
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Refresh every:", selection: $refreshInterval) {
+                        ForEach(RefreshInterval.predefined, id: \.self) { interval in
+                            Text(interval.displayName).tag(interval)
+                        }
+                        Text("Custom").tag(RefreshInterval.custom)
+                    }
+                    .onChange(of: refreshInterval) { newValue in
+                        updateRefreshInterval()
+                    }
 
-                    Text("Choose which PR statuses to display in the menu:")
-                        .font(.subheadline)
+                    // Custom interval text field (only shown when Custom is selected)
+                    if case .custom = refreshInterval {
+                        HStack {
+                            AppKitTextField(
+                                text: $customIntervalText,
+                                placeholder: "Minutes (1-60)",
+                                onSubmit: updateRefreshInterval
+                            )
+                            .frame(width: 100)
+
+                            Text("minutes")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Text("How often to check for new pull requests.")
+                        .font(.caption)
                         .foregroundColor(.secondary)
 
                     Divider()
+                        .padding(.vertical, 4)
 
-                    // Status checkboxes
+                    Toggle("Group by Repository", isOn: $groupByRepo)
+                        .onChange(of: groupByRepo) { newValue in
+                            updateGroupByRepo(newValue: newValue)
+                        }
+
+                    Text("When enabled, PRs are organized by repository with headers.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    Toggle("Reverse Click Behavior", isOn: $reverseClickBehavior)
+                        .onChange(of: reverseClickBehavior) { newValue in
+                            updateReverseClickBehavior(newValue: newValue)
+                        }
+
+                    Text("When enabled, regular click copies URL and ⌘-click opens in browser.\nWhen disabled (default), regular click opens in browser and ⌘-click copies URL.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    Toggle("Launch at Login", isOn: $launchAtLogin)
+                        .onChange(of: launchAtLogin) { newValue in
+                            updateLaunchAtLogin(newValue: newValue)
+                        }
+
+                    Text("Automatically start GitHub Menu Bar when you log in to your Mac.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(20)
+            }
+            .tabItem {
+                Label("General", systemImage: "gear")
+            }
+
+            // MARK: - Filtering Tab (profile-managed settings)
+            VStack(spacing: 0) {
+                // Profile Management Bar (only shown in Filtering tab)
+                ProfileManagementBar(onSettingsChanged: onSettingsChanged)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // PR Status filter section
                     VStack(alignment: .leading, spacing: 12) {
+                        Text("PR Status")
+                            .font(.headline)
+
+                        Text("Choose which PR statuses to display in the menu:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
                         Toggle(isOn: $showOpen) {
                             HStack(spacing: 6) {
                                 Text("Show Open PRs")
@@ -336,7 +408,7 @@ struct SettingsView: View {
 
                     // Review decision filter section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Filter by Review Status")
+                        Text("Review Status")
                             .font(.headline)
 
                         Text("Choose which review statuses to display:")
@@ -386,98 +458,6 @@ struct SettingsView: View {
 
                     Divider()
 
-                    // Refresh interval section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Refresh Interval")
-                            .font(.headline)
-
-                        Text("How often to check for new pull requests:")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        Picker("Refresh every:", selection: $refreshInterval) {
-                            ForEach(RefreshInterval.predefined, id: \.self) { interval in
-                                Text(interval.displayName).tag(interval)
-                            }
-                            Text("Custom").tag(RefreshInterval.custom)
-                        }
-                        .onChange(of: refreshInterval) { newValue in
-                            updateRefreshInterval()
-                        }
-
-                        // Custom interval text field (only shown when Custom is selected)
-                        if case .custom = refreshInterval {
-                            HStack {
-                                AppKitTextField(
-                                    text: $customIntervalText,
-                                    placeholder: "Minutes (1-60)",
-                                    onSubmit: updateRefreshInterval
-                                )
-                                .frame(width: 100)
-
-                                Text("minutes")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-
-                    Divider()
-
-                    // Group by repository section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Display Options")
-                            .font(.headline)
-
-                        Toggle("Group by Repository", isOn: $groupByRepo)
-                            .onChange(of: groupByRepo) { newValue in
-                                updateGroupByRepo(newValue: newValue)
-                            }
-
-                        Text("When enabled, PRs are organized by repository with headers.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        Divider()
-                            .padding(.vertical, 4)
-
-                        Toggle("Reverse Click Behavior", isOn: $reverseClickBehavior)
-                            .onChange(of: reverseClickBehavior) { newValue in
-                                updateReverseClickBehavior(newValue: newValue)
-                            }
-
-                        Text("When enabled, regular click copies URL and ⌘-click opens in browser.\nWhen disabled (default), regular click opens in browser and ⌘-click copies URL.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        Divider()
-                            .padding(.vertical, 4)
-
-                        Toggle("Launch at Login", isOn: $launchAtLogin)
-                            .onChange(of: launchAtLogin) { newValue in
-                                updateLaunchAtLogin(newValue: newValue)
-                            }
-
-                        Text("Automatically start GitHub Menu Bar when you log in to your Mac.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Divider()
-
-                    // Info text
-                    Text("Changes take effect immediately and will be remembered.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(20)
-            }
-            .tabItem {
-                Label("General", systemImage: "gear")
-            }
-
-            // MARK: - Advanced Tab
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
                     // Repository filtering section
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Repository Filtering")
@@ -520,7 +500,7 @@ struct SettingsView: View {
 
                                 TextEditor(text: $repoListText)
                                     .font(.system(.body, design: .monospaced))
-                                    .frame(height: 120)
+                                    .frame(height: 100)
                                     .border(Color.gray.opacity(0.3), width: 1)
 
                                 if let error = repoSaveError {
@@ -584,13 +564,13 @@ struct SettingsView: View {
 
                                 TextEditor(text: $authorListText)
                                     .font(.system(.body, design: .monospaced))
-                                    .frame(height: 120)
+                                    .frame(height: 100)
                                     .border(Color.gray.opacity(0.3), width: 1)
 
                                 if let error = authorSaveError {
                                     Text(error)
                                         .font(.caption)
-                                        .foregroundColor(.red)
+                                        .foregroundColor(.secondary)
                                 }
 
                                 Button("Save") {
@@ -603,18 +583,12 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-
-                    Divider()
-
-                    // Info text
-                    Text("Changes take effect immediately and will be remembered.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
                 .padding(20)
+                }
             }
             .tabItem {
-                Label("Advanced", systemImage: "slider.horizontal.3")
+                Label("Filtering", systemImage: "line.3.horizontal.decrease.circle")
             }
 
             // MARK: - Profiles Tab

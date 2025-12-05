@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Group by Repository" setting is now global and no longer saved per-profile
 - "Reverse Click Behavior" setting is now global and no longer saved per-profile
 - "Refresh Interval" setting is now global and no longer saved per-profile
+- Reorganized Settings window tabs:
+  - **General**: Global settings (refresh interval, display options, launch at login)
+  - **Filtering**: Profile-managed filter settings (PR status, review status, repo/author filters)
+  - **Profiles**: Profile management (unchanged)
 
 ### Fixed
 
