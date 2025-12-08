@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Internal
+
+## [0.7.0] - 2025-12-08
+
+### Added
 - Launch at Login toggle in Settings > General > Display Options
 
 ### Changed
@@ -18,10 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **General**: Global settings (refresh interval, display options, launch at login)
   - **Filtering**: Profile-managed filter settings (PR status, review status, repo/author filters)
   - **Profiles**: Profile management (unchanged)
-
-### Fixed
-
-### Internal
 
 ## [0.6.0] - 2025-12-05
 
