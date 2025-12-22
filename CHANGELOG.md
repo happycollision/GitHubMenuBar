@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+### Internal
+
+## [0.7.1] - 2025-12-22
+
+### Fixed
 - Fix draft status incorrectly taking precedence over closed/merged status for PRs
 
 ### Internal
