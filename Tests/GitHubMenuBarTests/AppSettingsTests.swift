@@ -209,9 +209,6 @@ final class AppSettingsTests: XCTestCase {
         // Configure settings
         settings.excludedStatuses = [.merged, .closed]
         settings.excludedReviewDecisions = [.noReview]
-        settings.refreshIntervalMinutes = 15
-        settings.groupByRepo = true
-        settings.reverseClickBehavior = true
         settings.repoFilterEnabled = true
         settings.repoFilterMode = .whitelist
         settings.whitelistedRepositories = ["owner/repo1"]
@@ -222,13 +219,12 @@ final class AppSettingsTests: XCTestCase {
         // Create snapshot
         let snapshot = settings.createSnapshot()
 
-        // Verify snapshot captures all settings
+        // Verify snapshot captures all profile-specific settings
+        // Note: refreshIntervalMinutes, groupByRepo, reverseClickBehavior are global settings
+        // and are not included in profiles
         XCTAssertTrue(snapshot.excludedStatuses.contains("MERGED"))
         XCTAssertTrue(snapshot.excludedStatuses.contains("CLOSED"))
         XCTAssertTrue(snapshot.excludedReviewDecisions.contains("NO_REVIEW"))
-        XCTAssertEqual(snapshot.refreshIntervalMinutes, 15)
-        XCTAssertEqual(snapshot.groupByRepo, true)
-        XCTAssertEqual(snapshot.reverseClickBehavior, true)
         XCTAssertEqual(snapshot.repoFilterEnabled, true)
         XCTAssertEqual(snapshot.repoFilterMode, "whitelist")
         XCTAssertEqual(snapshot.whitelistedRepositories, ["owner/repo1"])
@@ -239,12 +235,11 @@ final class AppSettingsTests: XCTestCase {
 
     func testApplySnapshot() {
         // Create a snapshot with specific settings
+        // Note: refreshIntervalMinutes, groupByRepo, reverseClickBehavior are global settings
+        // and are not included in profiles
         let snapshot = ProfileSettings(
             excludedStatuses: ["DRAFT", "MERGED"],
             excludedReviewDecisions: ["APPROVED"],
-            refreshIntervalMinutes: 20,
-            groupByRepo: false,
-            reverseClickBehavior: true,
             repoFilterEnabled: true,
             repoFilterMode: "blacklist",
             whitelistedRepositories: [],
@@ -258,14 +253,11 @@ final class AppSettingsTests: XCTestCase {
         // Apply snapshot
         settings.applySnapshot(snapshot)
 
-        // Verify settings were updated
+        // Verify profile-specific settings were updated
         XCTAssertTrue(settings.isExcluded(.draft))
         XCTAssertTrue(settings.isExcluded(.merged))
         XCTAssertFalse(settings.isExcluded(.open))
         XCTAssertTrue(settings.isExcluded(.approved))
-        XCTAssertEqual(settings.refreshIntervalMinutes, 20)
-        XCTAssertEqual(settings.groupByRepo, false)
-        XCTAssertEqual(settings.reverseClickBehavior, true)
         XCTAssertEqual(settings.repoFilterEnabled, true)
         XCTAssertEqual(settings.repoFilterMode, .blacklist)
         XCTAssertEqual(settings.blacklistedRepositories, ["owner/spam"])

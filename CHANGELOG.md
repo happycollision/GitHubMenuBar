@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix draft status incorrectly taking precedence over closed/merged status for PRs
 
 ### Internal
+- Fix profile snapshot tests after decoupling global settings from profiles
 
 ## [0.7.0] - 2025-12-08
 
