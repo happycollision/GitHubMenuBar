@@ -563,25 +563,26 @@ class MenuBarController: NSObject {
     /// - Returns: A configured NSView ready to be used as menu item view
     private func createPRView(pr: PullRequest, includeRepoName: Bool) -> NSView {
         // Determine status text and color
+        // Terminal states (MERGED, CLOSED) take precedence over draft status
         let (statusText, statusColor): (String, NSColor)
-        if pr.isDraft {
-            statusText = "DRAFT"
-            statusColor = .systemGray
-        } else {
-            switch pr.state.uppercased() {
-            case "OPEN":
+        switch pr.state.uppercased() {
+        case "MERGED":
+            statusText = "MERGED"
+            statusColor = githubPurple
+        case "CLOSED":
+            statusText = "CLOSED"
+            statusColor = githubRed
+        case "OPEN":
+            if pr.isDraft {
+                statusText = "DRAFT"
+                statusColor = .systemGray
+            } else {
                 statusText = "OPEN"
                 statusColor = githubGreen
-            case "MERGED":
-                statusText = "MERGED"
-                statusColor = githubPurple
-            case "CLOSED":
-                statusText = "CLOSED"
-                statusColor = githubRed
-            default:
-                statusText = pr.state.uppercased()
-                statusColor = .systemGray
             }
+        default:
+            statusText = pr.state.uppercased()
+            statusColor = .systemGray
         }
 
         // Create status pill image with fixed width for alignment
