@@ -380,15 +380,29 @@ final class GitHubService: Sendable {
 
         do {
             if hasDraft {
-                // Query for all drafts
-                let draftQuery = "type:pr review-requested:@me is:draft \(baseFilters)".trimmingCharacters(in: .whitespaces)
-                let result = try await executeQuery(searchQuery: draftQuery)
-                allPRs.append(contentsOf: result.pullRequests)
-                anyHasMore = anyHasMore || result.hasMore
-                logger.debug("Fetched \(result.pullRequests.count) draft PRs, hasMore: \(result.hasMore)")
+                // Query for drafts, but only in states that are also enabled
+                // A draft can be open, closed, or merged - we need to respect the other status filters
+                var draftStates: [String] = []
+                if hasOpen { draftStates.append("is:open") }
+                if hasMerged { draftStates.append("is:merged") }
+                if hasClosed { draftStates.append("is:closed is:unmerged") }
 
-                // Check for cancellation between queries
-                try Task.checkCancellation()
+                // If no other states are enabled, default to open drafts
+                // (since drafts are typically associated with open PRs)
+                if draftStates.isEmpty {
+                    draftStates.append("is:open")
+                }
+
+                for stateFilter in draftStates {
+                    let draftQuery = "type:pr review-requested:@me is:draft \(stateFilter) \(baseFilters)".trimmingCharacters(in: .whitespaces)
+                    let result = try await executeQuery(searchQuery: draftQuery)
+                    allPRs.append(contentsOf: result.pullRequests)
+                    anyHasMore = anyHasMore || result.hasMore
+                    logger.debug("Fetched \(result.pullRequests.count) draft PRs (\(stateFilter)), hasMore: \(result.hasMore)")
+
+                    // Check for cancellation between queries
+                    try Task.checkCancellation()
+                }
             }
 
             if hasOpen {

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- Fix closed draft PRs appearing when "Closed" status filter is disabled (draft query now respects other status filters)
 
 ### Internal
 
